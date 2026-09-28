@@ -68,10 +68,10 @@ Uma tarefa bem escrita no template (`tarefa.yml`) deve ser fatiável o bastante 
 
 ## 6. O board deste repositório (como está configurado)
 
-- **Board:** https://github.com/users/ScaTecnologia/projects/2 — "LabSystem — Esteira", vinculado ao repositório.
+- **Board:** https://github.com/orgs/ScaTecnologia-Lab2/projects/1 — "LabSystem — Esteira", vinculado ao repositório.
 - **Colunas (campo Status):** Backlog · To Do · Em Progresso · Em Revisão · Concluído.
-- **Automações nativas ligadas** (projeto → ⋯ → Workflows): *Item added to project* (entra em **To Do**), *Pull request linked to issue* (→ **Em Revisão**), *Pull request merged* e *Item closed* (→ **Concluído**), *Auto-close issue*, *Auto-add sub-issues*.
-- **Criar um card:** https://github.com/ScaTecnologia/laboratorio-claude-code/issues/new/choose → modelo **Tarefa** (aplica o rótulo `tarefa`) ou **Bug**. Se o card não aparecer no board, adicione pela lateral da issue (*Projects*).
+- **Automações nativas** (projeto → ⋯ → Workflows) — precisam ser ligadas na tela; a API não permite: *Item added to project* (entra em **To Do**), *Pull request linked to issue* (→ **Em Revisão**), *Pull request merged* e *Item closed* (→ **Concluído**), *Auto-close issue*, *Auto-add sub-issues*.
+- **Criar um card:** https://github.com/ScaTecnologia-Lab2/laboratorio-claude-code/issues/new/choose → modelo **Tarefa** (aplica o rótulo `tarefa`) ou **Bug**. Se o card não aparecer no board, adicione pela lateral da issue (*Projects*).
 - **Pegar o card e criar a branch sem sair do GitHub:** na issue, *Assignees* → você; depois *Development → Create a branch*. O GitHub sugere o nome (ex.: `27-mostrar-a-quantidade...`), já liga a branch à issue e mostra o comando:
   ```bash
   git fetch origin

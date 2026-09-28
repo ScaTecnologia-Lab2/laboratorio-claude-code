@@ -499,7 +499,7 @@ Os mesmos comandos rodam no GitHub Actions (`.github/workflows/ci.yml`) em todo 
 | `docs/atualizar_docx.sh` | Regenera os `.docx` de `docs/` a partir dos `.md` (pandoc via Docker) |
 | `.claude/hooks/` | `security-guardrail.js` (bloqueia `.env` e SQL interpolado) e `pipeline-guardrail.js` (impede publish/deploy automático) |
 
-No GitHub (`ScaTecnologia/laboratorio-claude-code`, público): ruleset **"Proteger main"** (PR + 8 checks obrigatórios + aprovação de code owner), CodeQL, Dependabot, secret scanning, Environment `production` e o board Kanban em https://github.com/users/ScaTecnologia/projects/2.
+No GitHub (`ScaTecnologia-Lab2/laboratorio-claude-code`, público): ruleset **"Proteger main"** (PR + 8 checks obrigatórios + aprovação de code owner), CodeQL, Dependabot, secret scanning, Environment `production` e o board Kanban em https://github.com/orgs/ScaTecnologia-Lab2/projects/1.
 
 ---
 

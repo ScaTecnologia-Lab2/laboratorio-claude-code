@@ -75,7 +75,7 @@ cd ~/devs/dev1/laboratorio-claude-code      # agora você é o Dev 1
 
 ## 4. Roteiro: dois devs, dois cards, ao mesmo tempo
 
-1. **Crie (ou escolha) dois cards** no board — https://github.com/users/ScaTecnologia/projects/2. Ex.: o #27 (quantidade de clientes) para o Dev 1 e outro para o Dev 2.
+1. **Crie (ou escolha) dois cards** no board — https://github.com/orgs/ScaTecnologia-Lab2/projects/1. Ex.: o #27 (quantidade de clientes) para o Dev 1 e outro para o Dev 2.
 
 2. **Dev 1 pega o card e cria a branch** — na janela logada como **sca-dev1**, abra a issue, *Assignees* → *assign yourself*; mova o card para **Em Progresso**; *Development → Create a branch*. Depois:
    ```bash
@@ -139,7 +139,7 @@ cd ~/devs/dev1/laboratorio-claude-code      # agora você é o Dev 1
 ```bash
 for n in 1 2; do
   mkdir -p ~/devs/dev$n && cd ~/devs/dev$n
-  git clone git@github.com:ScaTecnologia/laboratorio-claude-code.git
+  git clone git@github.com:ScaTecnologia-Lab2/laboratorio-claude-code.git
   cd laboratorio-claude-code
   git config user.name "Dev $n"
   git config user.email "dev$n@example.invalid"
@@ -159,7 +159,7 @@ git -C ~/devs/devN/laboratorio-claude-code config core.sshCommand "ssh -i ~/.ssh
 git -C ~/devs/devN/laboratorio-claude-code config user.email "<id>+<usuário>@users.noreply.github.com"
 
 # 3. Colaborador com permissão Write (admin) e login do gh (cada conta autoriza o próprio código)
-gh api -X PUT repos/ScaTecnologia/laboratorio-claude-code/collaborators/<usuário> -f permission=push
+gh api -X PUT repos/ScaTecnologia-Lab2/laboratorio-claude-code/collaborators/<usuário> -f permission=push
 gh auth login -h github.com -p ssh --skip-ssh-key -w
 ```
 

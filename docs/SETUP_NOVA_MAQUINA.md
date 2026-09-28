@@ -11,9 +11,9 @@ A pasta inteira do projeto (`laboratorio-claude-code/`), **exceto** o que já es
 O repositório está no GitHub (público), então o jeito mais simples é clonar:
 
 ```bash
-git clone git@github.com:ScaTecnologia/laboratorio-claude-code.git      # SSH (precisa da chave cadastrada, ver seção 7)
+git clone git@github.com:ScaTecnologia-Lab2/laboratorio-claude-code.git      # SSH (precisa da chave cadastrada, ver seção 7)
 # ou
-git clone https://github.com/ScaTecnologia/laboratorio-claude-code.git  # HTTPS (só leitura sem login)
+git clone https://github.com/ScaTecnologia-Lab2/laboratorio-claude-code.git  # HTTPS (só leitura sem login)
 ```
 
 Os materiais de curso (`.pptx`, `.zip`, `Aula3_*` etc.) **não estão no Git** (ficam no `.gitignore`) — se precisar deles, copie à parte.
