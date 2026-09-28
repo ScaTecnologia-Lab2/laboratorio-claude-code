@@ -8,6 +8,9 @@ const API = '/fornecedores';
   document.getElementById('cnpj').addEventListener('input', e => {
     e.target.value = mascararCnpj(e.target.value);
   });
+  document.getElementById('busca').addEventListener('input', () => {
+    renderizar(filtrar(fornecedores));
+  });
 })();
 
 function mascararCnpj(v) {
@@ -19,14 +22,36 @@ function mascararCnpj(v) {
   return `${d.slice(0, 2)}.${d.slice(2, 5)}.${d.slice(5, 8)}/${d.slice(8, 12)}-${d.slice(12)}`;
 }
 
+// Lista vinda da API — a busca filtra esta variável, sem nova requisição
+let fornecedores = [];
+
 async function carregar() {
   const res = await fetch(API);
   if (!res.ok) return;
-  const lista = await res.json();
+  fornecedores = await res.json();
+  renderizar(filtrar(fornecedores));
+}
+
+function filtrar(lista) {
+  const termo = document.getElementById('busca').value.trim().toLowerCase();
+  if (!termo) return lista;
+
+  // Só compara com o CNPJ se o termo tiver apenas números e pontuação de CNPJ
+  const digitos = /^[\d.\/\-\s]+$/.test(termo) ? termo.replace(/\D/g, '') : '';
+
+  return lista.filter(f =>
+    (f.nomeempresa  || '').toLowerCase().includes(termo) ||
+    (f.nomefantasia || '').toLowerCase().includes(termo) ||
+    (digitos !== '' && String(f.cnpj || '').replace(/\D/g, '').includes(digitos))
+  );
+}
+
+function renderizar(lista) {
   const tbody = document.getElementById('tabela-body');
 
   if (lista.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="7" class="vazio">Nenhum fornecedor cadastrado.</td></tr>';
+    const texto = fornecedores.length === 0 ? 'Nenhum fornecedor cadastrado.' : 'Nenhum fornecedor encontrado.';
+    tbody.innerHTML = `<tr><td colspan="7" class="vazio">${texto}</td></tr>`;
     return;
   }
 
