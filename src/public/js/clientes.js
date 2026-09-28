@@ -24,6 +24,9 @@ async function carregar() {
   const clientes = await res.json();
   const tbody = document.getElementById('tabela-body');
 
+  // Mostra a quantidade no título da lista (inclusive "(0)").
+  document.getElementById('titulo-lista').textContent = `Clientes cadastrados (${clientes.length})`;
+
   // Estado vazio: mostra uma linha de aviso ocupando todas as colunas.
   if (clientes.length === 0) {
     tbody.innerHTML = '<tr><td colspan="6" class="vazio">Nenhum cliente cadastrado.</td></tr>';
