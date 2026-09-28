@@ -2,7 +2,7 @@
 
 > **Leia este arquivo primeiro, antes de qualquer outro documento.** Ele existe para que uma nova sessão do Claude Code (ou você, voltando depois de um tempo, ou em outra máquina) saiba em 1 minuto o que já foi feito, o que falta, e o que fazer a seguir — sem precisar reconstruir o histórico da conversa.
 >
-> Última atualização: 2026-09-24. Se você (Claude Code) alterar algo relevante ao estado do laboratório, **atualize este arquivo antes de terminar a sessão**.
+> Última atualização: 2026-09-28. Se você (Claude Code) alterar algo relevante ao estado do laboratório, **atualize este arquivo antes de terminar a sessão**.
 
 ---
 
@@ -89,7 +89,8 @@ Isto é o que falta para "levar o laboratório para valer" (itens riscados já f
 15. **Para você praticar:** Dev 1 faz o card #27 em `~/devs/dev1` e Dev 2 o #29 em `~/devs/dev2` (`docs/SIMULANDO_2_DEVS.md`).
 16. ~~Contas reais para os devs~~ — feito em 2026-09-28: contas **sca-dev1** e **sca-dev2** (e-mails `alexaugusto2+dev1/+dev2@gmail.com`), colaboradoras com permissão Write; chave SSH própria por pasta (`core.sshCommand`); commits com o e-mail `noreply` de cada conta; `gh` com as 3 contas (`gh auth switch -u <conta>`); `CODEOWNERS` com as 3 contas; **bypass do admin removido** do ruleset — toda mudança precisa da aprovação de outra conta. Guia: `docs/SIMULANDO_2_DEVS.md`.
 17. ~~Repositório na organização~~ — em 2026-09-25 o repositório foi transferido para a organização **ScaTecnologia-Lab2** (plano Free; membros: ScaTecnologia admin, sca-dev1, sca-dev2). Preservados: ruleset, Environment `production`, colaboradores. A transferência **desligou** CodeQL e secret scanning/push protection — religados em 2026-09-28. Novo board na organização: https://github.com/orgs/ScaTecnologia-Lab2/projects/1 (público, devs com permissão de escrita, cards #27 e #29). O board antigo da conta pessoal ficou só como histórico. Remoto das 3 pastas e links da documentação atualizados.
-18. **Próximo (opcional):** planejar Node 24 → 26 LTS depois de 2026-10-28.
+18. ~~Primeira revisão real entre contas~~ — feito em 2026-09-28: o PR #32 (aberto por ScaTecnologia) foi **aprovado por sca-dev1** e mergeado com os checks verdes. Como aprovar: entrar como outra conta (janela anônima no navegador → *Files changed* → *Review changes* → *Approve*; ou `gh auth switch -u sca-dev1` + `gh pr review <n> --approve`, e depois `gh auth switch -u ScaTecnologia` para voltar). Ninguém aprova o próprio PR. Limpeza local: apagadas as branches já mergeadas `chore/time-com-contas-reais` e `chore/python-3.13` (`git branch -d` + `git fetch --prune`); hoje só existe a `main`.
+19. **Próximo (opcional):** planejar Node 24 → 26 LTS depois de 2026-10-28.
 
 ---
 
