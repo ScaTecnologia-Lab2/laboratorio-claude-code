@@ -14,7 +14,7 @@ Contexto completo do projeto construído durante as sessões de laboratório com
 **Porta Node.js:** `3000`
 **Porta Python:** `3001`
 **Execução:** `docker compose up --build -d` (ou os dois processos manualmente)
-**Repositório:** https://github.com/ScaTecnologia/laboratorio-claude-code (público) — board: https://github.com/users/ScaTecnologia/projects/2
+**Repositório:** https://github.com/ScaTecnologia-Lab2/laboratorio-claude-code (público) — board: https://github.com/orgs/ScaTecnologia-Lab2/projects/1
 
 ---
 
@@ -122,7 +122,7 @@ Feita numa máquina Linux nova, com Docker permitido (as máquinas Unisys anteri
 - Imagens sem CVEs CRITICAL/HIGH corrigíveis: npm removido do runtime Node; pip/setuptools/wheel removidos do runtime Python.
 
 ### 18. Esteira CI/CD no GitHub
-- Primeiro commit organizado (materiais de curso e logs de hooks no `.gitignore`), branch `main`, repositório `ScaTecnologia/laboratorio-claude-code` (público).
+- Primeiro commit organizado (materiais de curso e logs de hooks no `.gitignore`), branch `main`, repositório `ScaTecnologia-Lab2/laboratorio-claude-code` (público).
 - `ci.yml` (lint, testes, integração com Postgres, scan de segurança) e `docker-build.yml` (build + scan Trivy automáticos; publish/deploy só manuais, deploy com aprovação no Environment `production`).
 - `trivy-action` fixada pelo SHA do commit (a tag antiga deixou de existir).
 - Hook `pipeline-guardrail.js` reescrito: impede o Claude Code de deixar publish/deploy automáticos.

@@ -21,10 +21,10 @@ O projeto já é um repositório git local (`git status` funciona), mas **sem re
 
 ```bash
 # 1. Crie um repositório vazio no GitHub (via site ou gh CLI)
-gh repo create ScaTecnologia/laboratorio-claude-code --public --source=. --remote=origin
+gh repo create ScaTecnologia-Lab2/laboratorio-claude-code --public --source=. --remote=origin
 
 # 2. Ou, se preferir pelo site: crie o repo no GitHub.com e depois:
-git remote add origin git@github.com:ScaTecnologia/laboratorio-claude-code.git
+git remote add origin git@github.com:ScaTecnologia-Lab2/laboratorio-claude-code.git
 git branch -M main
 git push -u origin main
 ```

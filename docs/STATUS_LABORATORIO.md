@@ -14,7 +14,7 @@ Um projeto Node.js + Python (LabSystem — CRUD de clientes/fornecedores/usuári
 2. **DevOps e esteira de CI/CD** — o que é, boas práticas, e uma esteira real implementada com GitHub Actions.
 3. **Trabalho em equipe na esteira** — como vários desenvolvedores usam o mesmo repositório sem destruir o trabalho uns dos outros, e o que é/como se resolve um conflito de merge.
 
-As partes 2 e 3 são o trabalho mais recente (documentado abaixo). Desde 2026-09-24 o projeto está no GitHub: `ScaTecnologia/laboratorio-claude-code` (**público**).
+As partes 2 e 3 são o trabalho mais recente (documentado abaixo). Desde 2026-09-24 o projeto está no GitHub: `ScaTecnologia-Lab2/laboratorio-claude-code` (**público**).
 
 ---
 
@@ -69,14 +69,14 @@ Isto é o que falta para "levar o laboratório para valer" (itens riscados já f
 
 1. ~~Resolver o arquivo `.git/index.lock`~~ — removido em 2026-09-24.
 2. ~~Decidir o que entra no primeiro commit~~ — feito em 2026-09-24 (commit `feat: esteira CI/CD, colaboração em equipe e Docker ativo`). Materiais de curso, logs dos hooks e o PDF de conferência ficaram no `.gitignore` (continuam na pasta local).
-3. ~~Renomear a branch para `main` e criar o repositório remoto~~ — feito em 2026-09-24: `git@github.com:ScaTecnologia/laboratorio-claude-code.git` (**privado**, conta pessoal Free). Push por SSH (chave `~/.ssh/id_ed25519`, autentica como ScaTecnologia).
+3. ~~Renomear a branch para `main` e criar o repositório remoto~~ — feito em 2026-09-24: `git@github.com:ScaTecnologia-Lab2/laboratorio-claude-code.git` (**privado**, conta pessoal Free). Push por SSH (chave `~/.ssh/id_ed25519`, autentica como ScaTecnologia).
 4. ~~Configurar no GitHub~~ — feito em 2026-09-24 (repositório agora **público**, então tudo é aplicado no plano Free), via `gh` CLI (`~/.local/bin/gh`, logado como ScaTecnologia):
    - Ruleset **"Proteger main"**: PR obrigatório (sem push direto), 1 aprovação de code owner, 8 checks obrigatórios (6 jobs do `ci.yml` + 2 scans Trivy), sem force-push/deleção. **Admin pode furar só a aprovação via PR** (`gh pr merge --admin`) enquanto só existe uma conta — ao entrar o 2º dev, remova o bypass em Settings → Rules.
    - `CODEOWNERS` corrigido: apontava para `@alexandersilva` (conta de terceiro!) → `@ScaTecnologia`.
    - Dependabot alerts + security updates + `.github/dependabot.yml` (npm, pip, actions, docker; semanal). Abriu 15 PRs (#1–#15), **nenhum mergeado** — vários são major (ESLint 10, Node 25, Python 3.14, ioredis 6) e precisam de avaliação um a um.
    - Secret scanning + push protection; CodeQL (default setup).
    - Environment `production` com required reviewer ScaTecnologia, só a partir de branch protegida.
-5. ~~Criar o board Kanban~~ — https://github.com/users/ScaTecnologia/projects/2 ("LabSystem — Esteira"), colunas Backlog / To Do / Em Progresso / Em Revisão / Concluído, vinculado ao repositório. **Pendente manual:** ligar as automações nativas (aba do projeto → ⋯ → Workflows: "Item added", "Item closed", "Pull request merged", "Auto-add to project") — a API do GitHub não permite ligá-las; até lá, mover os cards à mão.
+5. ~~Criar o board Kanban~~ — https://github.com/orgs/ScaTecnologia-Lab2/projects/1 ("LabSystem — Esteira"), colunas Backlog / To Do / Em Progresso / Em Revisão / Concluído, vinculado ao repositório. **Pendente manual:** ligar as automações nativas (aba do projeto → ⋯ → Workflows: "Item added", "Item closed", "Pull request merged", "Auto-add to project") — a API do GitHub não permite ligá-las; até lá, mover os cards à mão.
 6. ~~Rodar o exercício de múltiplos devs~~ — feito no GitHub real em 2026-09-24: issues #16 (Ana) e #17 (Bruno), PRs #18 e #19, conflito real no `git rebase origin/main` do Bruno, resolvido combinando as duas mudanças (`listar()` agora: limite padrão 100 + `ORDER BY nome`), CI verde nos dois PRs, merge commits preservando autoria. Obs.: `clientes.html` não pagina, então passa a mostrar no máximo 100 clientes.
 7. ~~Testar `docker compose up --build` e o `docker-build.yml` no GitHub~~ — feito em 2026-09-24 (build+scan verdes em push e PR; trivy-action fixada por SHA v0.36.0).
 8. ~~Corrigir alertas do CodeQL e atualizar a documentação do Docker~~ — feito em 2026-09-24: `permissions: contents: read` nos dois workflows (11 alertas `actions/missing-workflow-permissions`); `ROTEIRO_CICD_CLAUDE_CODE.md` (Passo 7 reescrito com o que foi feito de verdade), `SETUP_NOVA_MAQUINA.md`, `DEVOPS_GUIA.md`, agente `devops-engineer` atualizados. Os `.docx` são regenerados dos `.md` com `sh docs/atualizar_docx.sh` (pandoc via Docker) — rode sempre que mudar um `.md` de `docs/`.
@@ -87,7 +87,9 @@ Isto é o que falta para "levar o laboratório para valer" (itens riscados já f
 13. ~~Simular 2 devs com containers~~ — feito em 2026-09-24: portas do `docker-compose.yml` configuráveis (`APP_PORT`, `API_PY_PORT`, `PG_PORT`, padrões inalterados); pastas `~/devs/dev1` (localhost:3010) e `~/devs/dev2` (localhost:3020), cada uma com clone, autor Git próprio e `portas.env`. Guia: `docs/SIMULANDO_2_DEVS.md`. Card de exemplo para praticar: #27.
 14. ~~Card do Dev 2 e documentação da sessão~~ — feito em 2026-09-24: card #29 (busca de fornecedores, Dev 2) no board, ao lado do #27 (Dev 1). `DOCS.md`, `ARCHITECTURE.md`, `PROJECT_CONTEXT.md` (nova "Sessão 3"), `BACKLOG_KANBAN.md`, `COLABORACAO_EQUIPE.md`, `EXERCICIO_MULTIPLOS_DEVS.md` e `CLAUDE.md` atualizados. Corrigida a descrição antiga das sessões: ficam na tabela `sessoes` do PostgreSQL (7 dias), não em memória.
 15. **Para você praticar:** Dev 1 faz o card #27 em `~/devs/dev1` e Dev 2 o #29 em `~/devs/dev2` (`docs/SIMULANDO_2_DEVS.md`).
-16. **Próximo (opcional):** planejar Node 24 → 26 LTS depois de 2026-10-28.
+16. ~~Contas reais para os devs~~ — feito em 2026-09-28: contas **sca-dev1** e **sca-dev2** (e-mails `alexaugusto2+dev1/+dev2@gmail.com`), colaboradoras com permissão Write; chave SSH própria por pasta (`core.sshCommand`); commits com o e-mail `noreply` de cada conta; `gh` com as 3 contas (`gh auth switch -u <conta>`); `CODEOWNERS` com as 3 contas; **bypass do admin removido** do ruleset — toda mudança precisa da aprovação de outra conta. Guia: `docs/SIMULANDO_2_DEVS.md`.
+17. ~~Repositório na organização~~ — em 2026-09-25 o repositório foi transferido para a organização **ScaTecnologia-Lab2** (plano Free; membros: ScaTecnologia admin, sca-dev1, sca-dev2). Preservados: ruleset, Environment `production`, colaboradores. A transferência **desligou** CodeQL e secret scanning/push protection — religados em 2026-09-28. Novo board na organização: https://github.com/orgs/ScaTecnologia-Lab2/projects/1 (público, devs com permissão de escrita, cards #27 e #29). O board antigo da conta pessoal ficou só como histórico. Remoto das 3 pastas e links da documentação atualizados.
+18. **Próximo (opcional):** planejar Node 24 → 26 LTS depois de 2026-10-28.
 
 ---
 
