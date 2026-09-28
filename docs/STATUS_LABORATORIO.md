@@ -87,7 +87,8 @@ Isto é o que falta para "levar o laboratório para valer" (itens riscados já f
 13. ~~Simular 2 devs com containers~~ — feito em 2026-09-24: portas do `docker-compose.yml` configuráveis (`APP_PORT`, `API_PY_PORT`, `PG_PORT`, padrões inalterados); pastas `~/devs/dev1` (localhost:3010) e `~/devs/dev2` (localhost:3020), cada uma com clone, autor Git próprio e `portas.env`. Guia: `docs/SIMULANDO_2_DEVS.md`. Card de exemplo para praticar: #27.
 14. ~~Card do Dev 2 e documentação da sessão~~ — feito em 2026-09-24: card #29 (busca de fornecedores, Dev 2) no board, ao lado do #27 (Dev 1). `DOCS.md`, `ARCHITECTURE.md`, `PROJECT_CONTEXT.md` (nova "Sessão 3"), `BACKLOG_KANBAN.md`, `COLABORACAO_EQUIPE.md`, `EXERCICIO_MULTIPLOS_DEVS.md` e `CLAUDE.md` atualizados. Corrigida a descrição antiga das sessões: ficam na tabela `sessoes` do PostgreSQL (7 dias), não em memória.
 15. **Para você praticar:** Dev 1 faz o card #27 em `~/devs/dev1` e Dev 2 o #29 em `~/devs/dev2` (`docs/SIMULANDO_2_DEVS.md`).
-16. **Próximo (opcional):** planejar Node 24 → 26 LTS depois de 2026-10-28.
+16. ~~Contas reais para os devs~~ — feito em 2026-09-28: contas **sca-dev1** e **sca-dev2** (e-mails `alexaugusto2+dev1/+dev2@gmail.com`), colaboradoras com permissão Write; chave SSH própria por pasta (`core.sshCommand`); commits com o e-mail `noreply` de cada conta; `gh` com as 3 contas (`gh auth switch -u <conta>`); `CODEOWNERS` com as 3 contas; **bypass do admin removido** do ruleset — toda mudança precisa da aprovação de outra conta. Guia: `docs/SIMULANDO_2_DEVS.md`.
+17. **Próximo (opcional):** planejar Node 24 → 26 LTS depois de 2026-10-28.
 
 ---
 

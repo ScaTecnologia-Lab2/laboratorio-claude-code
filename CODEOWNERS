@@ -5,25 +5,32 @@
 #
 # Formato: <padrão de caminho>  <@usuario-ou-time> [@outro-usuario ...]
 # O padrão mais específico que casar é o que vale (como .gitignore).
+#
+# Time do laboratório: @ScaTecnologia (tech lead/admin), @sca-dev1, @sca-dev2.
+# Quando uma linha lista várias pessoas, basta a aprovação de UMA delas — e o
+# GitHub nunca aceita a aprovação do próprio autor do PR. Na prática: toda
+# mudança precisa ser aprovada por OUTRA pessoa do time.
+# (Num time maior, áreas sensíveis teriam donos específicos — ex.: só o time
+# de segurança em /src/middlewares/.)
 
 # Dono padrão do repositório — usado quando nenhuma regra mais específica casa.
-*                                @ScaTecnologia
+*                                @ScaTecnologia @sca-dev1 @sca-dev2
 
 # Autenticação e controle de acesso — área sensível, revisão obrigatória.
-/src/middlewares/                @ScaTecnologia
-/src/routes/auth.js              @ScaTecnologia
-/src/usuarios.js                 @ScaTecnologia
-/src/sessoes.js                  @ScaTecnologia
+/src/middlewares/                @ScaTecnologia @sca-dev1 @sca-dev2
+/src/routes/auth.js              @ScaTecnologia @sca-dev1 @sca-dev2
+/src/usuarios.js                 @ScaTecnologia @sca-dev1 @sca-dev2
+/src/sessoes.js                  @ScaTecnologia @sca-dev1 @sca-dev2
 
 # Esteira de CI/CD e infraestrutura — mudanças aqui afetam todo o time.
-/.github/                        @ScaTecnologia
-/Dockerfile                      @ScaTecnologia
-/Dockerfile.python               @ScaTecnologia
-/docker-compose.yml              @ScaTecnologia
-/.claude/hooks/                  @ScaTecnologia
-/.claude/settings.json           @ScaTecnologia
+/.github/                        @ScaTecnologia @sca-dev1 @sca-dev2
+/Dockerfile                      @ScaTecnologia @sca-dev1 @sca-dev2
+/Dockerfile.python               @ScaTecnologia @sca-dev1 @sca-dev2
+/docker-compose.yml              @ScaTecnologia @sca-dev1 @sca-dev2
+/.claude/hooks/                  @ScaTecnologia @sca-dev1 @sca-dev2
+/.claude/settings.json           @ScaTecnologia @sca-dev1 @sca-dev2
 
 # Documentação de processo — mudar as regras do jogo também precisa de revisão.
-/CLAUDE.md                       @ScaTecnologia
-/docs/COLABORACAO_EQUIPE.md      @ScaTecnologia
-/docs/DEVOPS_GUIA.md             @ScaTecnologia
+/CLAUDE.md                       @ScaTecnologia @sca-dev1 @sca-dev2
+/docs/COLABORACAO_EQUIPE.md      @ScaTecnologia @sca-dev1 @sca-dev2
+/docs/DEVOPS_GUIA.md             @ScaTecnologia @sca-dev1 @sca-dev2

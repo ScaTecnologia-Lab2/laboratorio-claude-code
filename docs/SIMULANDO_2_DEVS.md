@@ -28,13 +28,28 @@ Pasta do Dev 1 (branch dele)            Pasta do Dev 2 (branch dele)
 | | Dev 1 | Dev 2 | (pasta principal) |
 |---|---|---|---|
 | Pasta | `~/devs/dev1/laboratorio-claude-code` | `~/devs/dev2/laboratorio-claude-code` | `~/Documentos/laboratorio-claude-code` |
-| Autor dos commits | `Dev 1` | `Dev 2` | `alexaugusto2` |
+| Conta no GitHub | **sca-dev1** | **sca-dev2** | **ScaTecnologia** (tech lead/admin) |
+| Chave SSH usada no push | `~/.ssh/id_ed25519_dev1` | `~/.ssh/id_ed25519_dev2` | `~/.ssh/id_ed25519` |
+| Autor dos commits | `Dev 1` (ligado ao perfil sca-dev1) | `Dev 2` (ligado ao perfil sca-dev2) | `alexaugusto2` |
 | Sistema (navegador) | http://localhost:3010 | http://localhost:3020 | http://localhost:3000 |
 | API Python (só local) | 3011 | 3021 | 3001 |
 | Postgres (só local) | 5161 | 5162 | 5151 |
 | Nome dos containers | `dev1-...` | `dev2-...` | `laboratorio-claude-code-...` |
 
 As portas e o nome ficam no arquivo `portas.env` de cada pasta (fora do Git). Por isso **todo comando do compose leva `--env-file portas.env`**.
+
+**Quem é quem é decidido pela pasta**, sem você precisar fazer nada: cada pasta tem seu `user.name`/`user.email` e sua chave SSH (`git config core.sshCommand`). Um `git push` feito em `~/devs/dev1/...` chega ao GitHub como **sca-dev1**.
+
+**No navegador**, use uma janela para cada conta — por exemplo, a janela normal logada como ScaTecnologia e uma **janela anônima** (ou outro perfil do Chrome) logada como sca-dev1 ou sca-dev2.
+
+**No `gh` (terminal)**, as 3 contas estão conectadas; escolha a ativa antes de usar:
+
+```bash
+gh auth switch -u sca-dev1        # agir como Dev 1 (assumir card, abrir PR...)
+gh auth switch -u sca-dev2        # agir como Dev 2 (ex.: aprovar o PR do Dev 1)
+gh auth switch -u ScaTecnologia   # voltar a ser o admin
+gh auth status                    # mostra qual está ativa
+```
 
 **Login em um banco novo:** `admin@labsystem.com` / `admin123` (o sistema cria esse admin sozinho quando o banco está vazio).
 
@@ -62,7 +77,7 @@ cd ~/devs/dev1/laboratorio-claude-code      # agora você é o Dev 1
 
 1. **Crie (ou escolha) dois cards** no board — https://github.com/users/ScaTecnologia/projects/2. Ex.: o #27 (quantidade de clientes) para o Dev 1 e outro para o Dev 2.
 
-2. **Dev 1 pega o card e cria a branch** — no GitHub, abra a issue, *Assignees* → você; *Development → Create a branch*. Depois:
+2. **Dev 1 pega o card e cria a branch** — na janela logada como **sca-dev1**, abra a issue, *Assignees* → *assign yourself*; mova o card para **Em Progresso**; *Development → Create a branch*. Depois:
    ```bash
    cd ~/devs/dev1/laboratorio-claude-code
    git fetch origin
@@ -71,7 +86,7 @@ cd ~/devs/dev1/laboratorio-claude-code      # agora você é o Dev 1
    ```
    Abra http://localhost:3010, altere o código, rode o `up --build -d` de novo e veja a mudança.
 
-3. **Dev 2 faz o mesmo na pasta dele**:
+3. **Dev 2 faz o mesmo** — na janela logada como **sca-dev2**, e na pasta dele:
    ```bash
    cd ~/devs/dev2/laboratorio-claude-code
    git fetch origin
@@ -88,16 +103,20 @@ cd ~/devs/dev1/laboratorio-claude-code      # agora você é o Dev 1
    git commit -m "feat: ..."
    git push
    ```
-   Abra o PR com `Resolve #<número do card>`. O CI roda; o card vai para **Em Revisão**.
+   Abra o PR com `Resolve #<número do card>` (na janela do próprio dev). O CI roda; o card vai para **Em Revisão**.
 
-5. **Quem chegar depois atualiza a branch antes do merge** — se o outro dev já mesclou:
+5. **O outro dev revisa e aprova** — ninguém aprova o próprio PR, e a `main` exige 1 aprovação de code owner. Na janela logada como **sca-dev2**, abra o PR do Dev 1 → aba *Files changed* → leia, comente se precisar → **Review changes → Approve**. (E o Dev 1 faz o mesmo com o PR do Dev 2.) Pelo terminal: `gh auth switch -u sca-dev2 && gh pr review <n> --approve`.
+
+6. **Merge** — com CI verde **e** aprovação, o botão **Merge pull request** libera (para qualquer um do time). A issue fecha e o card vai para **Concluído**.
+
+7. **Quem chegar depois atualiza a branch antes do merge** — se o outro dev já mesclou:
    ```bash
    git fetch origin
    git rebase origin/main      # se der conflito: docs/EXERCICIO_MULTIPLOS_DEVS.md, passos 5 a 7
    git push --force-with-lease
    ```
 
-6. **Depois do merge, volte para a main atualizada** antes de pegar o próximo card:
+8. **Depois do merge, volte para a main atualizada** antes de pegar o próximo card:
    ```bash
    git checkout main && git pull
    ```
@@ -111,6 +130,9 @@ cd ~/devs/dev1/laboratorio-claude-code      # agora você é o Dev 1
 | O login não funciona | Cada dev tem seu próprio banco | Use `admin@labsystem.com` / `admin123`, ou o usuário que você criou **naquele** banco |
 | Commit saiu com o autor errado | Comando rodado na pasta errada | `pwd` e `git config user.name` antes de commitar |
 | Quero começar do zero o banco de um dev | — | `docker compose --env-file portas.env down -v` e `up --build -d` de novo |
+| Botão de merge bloqueado: "Review required" | Falta a aprovação de **outra** conta | Aprove na janela do outro dev (seção 4, passo 5) |
+| `Permission denied (publickey)` no push | A chave da pasta não está cadastrada na conta do dev | `ssh -i ~/.ssh/id_ed25519_devN -o IdentitiesOnly=yes -T git@github.com` deve responder `Hi sca-devN!` |
+| O `gh` fez algo com a conta errada | A conta ativa é outra | `gh auth status` e `gh auth switch -u <conta>` |
 
 ## 6. Como isto foi montado (para refazer em outra máquina)
 
@@ -125,4 +147,20 @@ for n in 1 2; do
 done
 ```
 
-Os commits saem com autor "Dev 1"/"Dev 2", mas o `git push` usa a sua chave SSH (conta ScaTecnologia) — no GitHub aparece o autor do commit e quem fez o push. Com desenvolvedores reais, cada um usa a própria conta GitHub (ver `docs/COLABORACAO_EQUIPE.md`).
+Depois, para cada dev com **conta própria no GitHub** (feito em 2026-09-28 com sca-dev1 e sca-dev2):
+
+```bash
+# 1. Chave SSH do dev, usada só pela pasta dele
+ssh-keygen -t ed25519 -N "" -C "devN@laboratorio-claude-code" -f ~/.ssh/id_ed25519_devN
+git -C ~/devs/devN/laboratorio-claude-code config core.sshCommand "ssh -i ~/.ssh/id_ed25519_devN -o IdentitiesOnly=yes"
+#    → cadastrar o .pub em https://github.com/settings/ssh/new, logado na conta do dev
+
+# 2. E-mail interno do GitHub (liga os commits ao perfil sem expor o e-mail real)
+git -C ~/devs/devN/laboratorio-claude-code config user.email "<id>+<usuário>@users.noreply.github.com"
+
+# 3. Colaborador com permissão Write (admin) e login do gh (cada conta autoriza o próprio código)
+gh api -X PUT repos/ScaTecnologia/laboratorio-claude-code/collaborators/<usuário> -f permission=push
+gh auth login -h github.com -p ssh --skip-ssh-key -w
+```
+
+Contas criadas com e-mails `alexaugusto2+dev1@gmail.com` / `+dev2` — o Gmail entrega tudo na mesma caixa.
