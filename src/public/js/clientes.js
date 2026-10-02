@@ -8,6 +8,9 @@
 // Endpoint base da API de clientes (todas as chamadas partem daqui).
 const API = '/clientes';
 
+// Cache completo dos clientes — permite filtrar sem nova chamada à API.
+let todosClientes = [];
+
 // IIFE de inicialização: executa assim que o script é carregado.
 // Garante que o usuário está autenticado ANTES de montar a tela.
 (async () => {
@@ -17,24 +20,39 @@ const API = '/clientes';
   carregar();                               // busca e renderiza a lista de clientes
 })();
 
-// Busca a lista de clientes na API e renderiza a tabela.
+// Busca a lista completa na API, armazena no cache e renderiza.
 async function carregar() {
   const res = await fetch(API);
-  if (!res.ok) return;                      // erro na requisição: mantém tela como está
-  const clientes = await res.json();
+  if (!res.ok) return;
+  todosClientes = await res.json();
+  document.getElementById('busca').value = '';  // limpa o filtro ao recarregar
+  renderizar(todosClientes);
+}
+
+// Filtra o cache pelo texto digitado (nome, cidade ou e-mail) e rerenderiza.
+function filtrar() {
+  const termo = document.getElementById('busca').value.toLowerCase().trim();
+  const resultado = todosClientes.filter(c =>
+    (c.nome   || '').toLowerCase().includes(termo) ||
+    (c.cidade || '').toLowerCase().includes(termo) ||
+    (c.email  || '').toLowerCase().includes(termo)
+  );
+  renderizar(resultado);
+}
+
+// Renderiza a tabela a partir de uma lista (completa ou filtrada).
+function renderizar(lista) {
   const tbody = document.getElementById('tabela-body');
 
-  // Mostra a quantidade no título da lista (inclusive "(0)").
-  document.getElementById('titulo-lista').textContent = `Clientes cadastrados (${clientes.length})`;
+  document.getElementById('titulo-lista').textContent = `Clientes cadastrados (${lista.length})`;
 
-  // Estado vazio: mostra uma linha de aviso ocupando todas as colunas.
-  if (clientes.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="6" class="vazio">Nenhum cliente cadastrado.</td></tr>';
+  if (lista.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" class="vazio">Nenhum cliente encontrado.</td></tr>';
     return;
   }
 
   // Monta uma <tr> por cliente. escHtml() evita XSS ao interpolar dados do banco.
-  tbody.innerHTML = clientes.map(c => `
+  tbody.innerHTML = lista.map(c => `
     <tr>
       <td class="td-id">${c.id}</td>
       <td>${escHtml(c.nome)}</td>
