@@ -402,6 +402,7 @@ pytest tests/ -v
 | `docs/STATUS_LABORATORIO.md` | Onde paramos, o que foi feito, próximos passos (ler primeiro) |
 | `docs/ROTEIRO_CICD_CLAUDE_CODE.md`, `DEVOPS_GUIA.md` | Como a esteira foi construída e a teoria de DevOps |
 | `docs/COLABORACAO_EQUIPE.md`, `EXERCICIO_MULTIPLOS_DEVS.md`, `BACKLOG_KANBAN.md`, `SIMULANDO_2_DEVS.md` | Trabalho em equipe: branches, conflitos, board, vários devs com containers |
+| `docs/FABRICA_DE_SOFTWARE.md` | Passo a passo do card à produção: papéis, tela + CLI, containers, banco, tag, deploy e rollback |
 | `docs/SETUP_NOVA_MAQUINA.md` | Levar o laboratório para outra máquina |
 
 ---

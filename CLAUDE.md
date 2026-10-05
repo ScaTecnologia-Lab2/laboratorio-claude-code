@@ -56,6 +56,7 @@ bandit -r src/ -q                     # SAST Python
 - Branching, revisão obrigatória (CODEOWNERS) e branch protection: `docs/COLABORACAO_EQUIPE.md`.
 - Exercício prático de conflito de merge entre 2 devs, resolvido passo a passo com comandos reais: `docs/EXERCICIO_MULTIPLOS_DEVS.md`.
 - Template de Pull Request: `.github/pull_request_template.md`. Dono de cada área do código: `CODEOWNERS`.
+- **Fluxo completo do card à produção** (quem faz o quê, tela e CLI, deploy e rollback): `docs/FABRICA_DE_SOFTWARE.md`. Produção local = pasta `~/Documentos/laboratorio-claude-code` (porta 3000), que só roda a `main`.
 
 ## URLs
 
@@ -121,3 +122,4 @@ bandit -r src/ -q                     # SAST Python
 | `docs/EXERCICIO_MULTIPLOS_DEVS.md` | Exercício prático (comandos reais) simulando 2 devs e um conflito de merge, do início ao fim |
 | `docs/BACKLOG_KANBAN.md` | Como configurar e usar o board Kanban (GitHub Projects) para o backlog de tarefas |
 | `docs/SIMULANDO_2_DEVS.md` | Simular 2 devs na mesma máquina: pastas `~/devs/dev1` e `~/devs/dev2`, cada uma com seus containers e portas (`portas.env`) |
+| `docs/FABRICA_DE_SOFTWARE.md` | **Passo a passo didático do card à produção** (gerente, dev, revisor, aprovador): tela + CLI, containers de dev/produção, banco, tag, deploy e rollback |
