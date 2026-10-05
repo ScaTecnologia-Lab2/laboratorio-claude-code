@@ -8,6 +8,12 @@ FROM python:3.13-slim
 WORKDIR /app
 ENV PYTHONUNBUFFERED=1
 RUN addgroup --system app && adduser --system --ingroup app app
+# Aplica as correções de segurança do Debian publicadas depois da imagem
+# base: a python:3.13-slim às vezes atrasa, e o Trivy (ignore-unfixed)
+# barra toda CVE que já tem correção (ex.: CVE-2026-103111 na libpcre2).
+RUN apt-get update \
+    && apt-get upgrade -y --no-install-recommends \
+    && rm -rf /var/lib/apt/lists/*
 COPY requirements.txt ./
 # Instala as dependências e depois remove as ferramentas de empacotamento
 # (pip/setuptools/wheel e as cópias em ensurepip): o runtime não precisa
