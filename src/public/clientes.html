@@ -80,6 +80,10 @@
 
       <div class="card">
         <p class="card-title" id="titulo-lista">Clientes cadastrados</p>
+        <div class="form-group">
+          <label for="busca">Buscar por nome, cidade ou e-mail</label>
+          <input type="search" id="busca" placeholder="Digite parte do nome, da cidade ou do e-mail" oninput="filtrar()" autocomplete="off" />
+        </div>
         <div class="table-wrapper">
           <table>
             <thead>
