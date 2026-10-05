@@ -279,9 +279,10 @@ gh issue create --label tarefa \
   --body-file card.md                     # arquivo com contexto, critérios e área
 gh project item-add 1 --owner ScaTecnologia-Lab2 \
   --url https://github.com/ScaTecnologia-Lab2/laboratorio-claude-code/issues/<número>
+gh project item-edit 1 --owner ScaTecnologia-Lab2 \
+  --url https://github.com/ScaTecnologia-Lab2/laboratorio-claude-code/issues/<número> \
+  --field Status --value "To Do"          # move o card de coluna (Backlog, To Do, Em Progresso, Em Revisão, Concluído)
 ```
-
-(Mudar a coluna pela CLI exige IDs internos do board; pela tela é só arrastar.)
 
 > ✅ **Exemplo real:** o card **#37** já foi criado assim, está em **To Do** e sem responsável, esperando o Dev 1.
 
@@ -302,6 +303,9 @@ gh project item-add 1 --owner ScaTecnologia-Lab2 \
 gh auth switch -u sca-dev1
 gh issue edit 37 --add-assignee @me
 gh issue view 37                 # lê o card no terminal
+gh project item-edit 1 --owner ScaTecnologia-Lab2 \
+  --url https://github.com/ScaTecnologia-Lab2/laboratorio-claude-code/issues/37 \
+  --field Status --value "Em Progresso"
 ```
 
 ## Etapa 3 — Dev cria a branch
