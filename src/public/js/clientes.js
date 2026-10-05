@@ -20,13 +20,13 @@ let todosClientes = [];
   carregar();                               // busca e renderiza a lista de clientes
 })();
 
-// Busca a lista completa na API, armazena no cache e renderiza.
+// Busca a lista completa na API, armazena no cache e renderiza
+// mantendo o filtro digitado (vale também depois de salvar ou excluir).
 async function carregar() {
   const res = await fetch(API);
   if (!res.ok) return;
   todosClientes = await res.json();
-  document.getElementById('busca').value = '';  // limpa o filtro ao recarregar
-  renderizar(todosClientes);
+  filtrar();
 }
 
 // Filtra o cache pelo texto digitado (nome, cidade ou e-mail) e rerenderiza.
@@ -37,17 +37,23 @@ function filtrar() {
     (c.cidade || '').toLowerCase().includes(termo) ||
     (c.email  || '').toLowerCase().includes(termo)
   );
-  renderizar(resultado);
+  renderizar(resultado, termo !== '');
 }
 
 // Renderiza a tabela a partir de uma lista (completa ou filtrada).
-function renderizar(lista) {
+function renderizar(lista, filtrando) {
   const tbody = document.getElementById('tabela-body');
+  const total = todosClientes.length;
 
-  document.getElementById('titulo-lista').textContent = `Clientes cadastrados (${lista.length})`;
+  // Com filtro ativo mostra "(x de y)"; sem filtro, só o total.
+  document.getElementById('titulo-lista').textContent = filtrando
+    ? `Clientes cadastrados (${lista.length} de ${total})`
+    : `Clientes cadastrados (${total})`;
 
+  // Estado vazio: diferencia "banco sem clientes" de "busca sem resultado".
   if (lista.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="6" class="vazio">Nenhum cliente encontrado.</td></tr>';
+    const texto = total === 0 ? 'Nenhum cliente cadastrado.' : 'Nenhum cliente encontrado.';
+    tbody.innerHTML = `<tr><td colspan="6" class="vazio">${texto}</td></tr>`;
     return;
   }
 
