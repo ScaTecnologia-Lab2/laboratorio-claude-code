@@ -30,7 +30,7 @@ metadata:
   name: frontend
   labels: { app: frontend }
 spec:
-  replicas: 2
+  # Sem "replicas:": controlado pelo HPA (ver comentário em backend.yaml).
   selector:
     matchLabels: { app: frontend }
   strategy:
@@ -65,6 +65,12 @@ spec:
           readinessProbe:
             httpGet: { path: /frontend-health, port: 8080 }
             periodSeconds: 5
+          # Desligamento gracioso: ao ser removido, o pod espera 5s ANTES de parar,
+          # dando tempo de o Service tirá-lo do balanceamento. Sem isso, o
+          # kubectl drain do teste derrubava ~11% das requisições.
+          lifecycle:
+            preStop:
+              exec: { command: ["sleep", "5"] }
           resources:
             requests: { cpu: 20m, memory: 16Mi }
             limits:   { cpu: 200m, memory: 64Mi }

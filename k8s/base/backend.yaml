@@ -29,7 +29,9 @@ metadata:
   name: backend
   labels: { app: backend }
 spec:
-  replicas: 2                  # ponto de partida; o HPA ajusta depois
+  # Sem "replicas:" de propósito: quem decide quantas cópias é o HPA
+  # (k8s/base/escala-e-resiliencia.yaml, mínimo 2). Se o número estivesse aqui,
+  # cada apply (e o selfHeal do Argo CD) voltaria a 2 e brigaria com o HPA.
   selector:
     matchLabels: { app: backend }
   strategy:
@@ -79,6 +81,12 @@ spec:
             periodSeconds: 5
           # requests: o que o pod reserva no nó (base do cálculo do HPA).
           # limits: o teto — passou da memória, o container é morto (OOMKilled).
+          # Desligamento gracioso: ao ser removido, o pod espera 5s ANTES de parar,
+          # dando tempo de o Service tirá-lo do balanceamento. Sem isso, o
+          # kubectl drain do teste derrubava ~11% das requisições.
+          lifecycle:
+            preStop:
+              exec: { command: ["sleep", "5"] }
           resources:
             requests: { cpu: 100m, memory: 64Mi }
             limits:   { cpu: 500m, memory: 256Mi }

@@ -24,7 +24,7 @@ metadata:
   name: fornecedores
   labels: { app: fornecedores }
 spec:
-  replicas: 2
+  # Sem "replicas:": controlado pelo HPA (ver comentário em backend.yaml).
   selector:
     matchLabels: { app: fornecedores }
   strategy:
@@ -63,6 +63,12 @@ spec:
           readinessProbe:
             httpGet: { path: /health, port: 3001 }
             periodSeconds: 5
+          # Desligamento gracioso: ao ser removido, o pod espera 5s ANTES de parar,
+          # dando tempo de o Service tirá-lo do balanceamento. Sem isso, o
+          # kubectl drain do teste derrubava ~11% das requisições.
+          lifecycle:
+            preStop:
+              exec: { command: ["sleep", "5"] }
           resources:
             requests: { cpu: 50m, memory: 64Mi }
             limits:   { cpu: 300m, memory: 192Mi }
