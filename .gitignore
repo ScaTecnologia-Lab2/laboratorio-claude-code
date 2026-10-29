@@ -32,3 +32,6 @@ docs/DEVOPS_GUIA.pdf
 
 # Portas locais de cada "dev" simulado (docs/SIMULANDO_2_DEVS.md)
 portas.env
+
+# Relatórios do teste de carga (scripts/k8s/teste-carga.sh)
+relatorio-carga-*.txt
