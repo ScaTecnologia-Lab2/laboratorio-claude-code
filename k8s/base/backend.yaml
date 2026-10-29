@@ -1,0 +1,86 @@
+# ============================================================================
+# Backend (Node) — Deployment + Service interno
+# ----------------------------------------------------------------------------
+# Deployment: "quero N cópias (pods) desta imagem, sempre saudáveis".
+#   - Se um pod morrer, o Deployment cria outro (auto-cura).
+#   - Ao trocar a imagem, faz rolling update: sobe pods novos e só derruba os
+#     antigos quando os novos estão prontos → sem tempo fora do ar.
+# Pode ter várias cópias porque é STATELESS: a sessão de login fica no
+# Postgres (tabela sessoes), então qualquer pod reconhece qualquer usuário.
+# Exceção didática: Redis/Mongo simulados ficam na memória de CADA pod
+# (estoque/avaliações divergem entre cópias) — ver docs/CONTAINERS_K8S_GUIA.md.
+# ============================================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend                # o nginx chama http://backend:3000
+  labels: { app: backend }
+spec:
+  type: ClusterIP              # só acessível de dentro do cluster
+  selector: { app: backend }   # balanceia entre TODOS os pods com este rótulo
+  ports:
+    - name: http
+      port: 3000
+      targetPort: 3000
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  labels: { app: backend }
+spec:
+  replicas: 2                  # ponto de partida; o HPA ajusta depois
+  selector:
+    matchLabels: { app: backend }
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0        # nunca fica com menos pods prontos que o desejado
+      maxSurge: 1              # sobe 1 pod novo por vez
+  template:
+    metadata:
+      labels: { app: backend }
+    spec:
+      # Espalha as cópias por nós diferentes: se um nó cair, sobra outro.
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels: { app: backend }
+      # Nó sumiu (desligado/sem rede)? Por padrão o Kubernetes espera 300s antes
+      # de recriar os pods em outro nó. 30s deixa a demonstração de falha visível.
+      tolerations:
+        - { key: node.kubernetes.io/unreachable, operator: Exists, effect: NoExecute, tolerationSeconds: 30 }
+        - { key: node.kubernetes.io/not-ready,   operator: Exists, effect: NoExecute, tolerationSeconds: 30 }
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 100           # usuário "app" criado no Dockerfile
+      containers:
+        - name: backend
+          image: labsystem-backend   # nome/tag finais vêm do overlay (kustomization)
+          ports:
+            - containerPort: 3000
+          envFrom:
+            - configMapRef: { name: labsystem-config }
+            - secretRef:    { name: labsystem-db }
+          # startupProbe: dá até 60s para o Node criar as tabelas na 1ª subida.
+          startupProbe:
+            httpGet: { path: /health, port: 3000 }
+            periodSeconds: 2
+            failureThreshold: 30
+          # livenessProbe: travou? o Kubernetes REINICIA o container.
+          livenessProbe:
+            httpGet: { path: /health, port: 3000 }
+            periodSeconds: 10
+          # readinessProbe: sem banco? o pod sai do balanceamento (sem reiniciar).
+          readinessProbe:
+            httpGet: { path: /pronto, port: 3000 }
+            periodSeconds: 5
+          # requests: o que o pod reserva no nó (base do cálculo do HPA).
+          # limits: o teto — passou da memória, o container é morto (OOMKilled).
+          resources:
+            requests: { cpu: 100m, memory: 64Mi }
+            limits:   { cpu: 500m, memory: 256Mi }
+          securityContext:
+            allowPrivilegeEscalation: false

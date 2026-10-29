@@ -1,0 +1,72 @@
+# ============================================================================
+# Frontend (nginx) — Deployment + Service do tipo LoadBalancer
+# ----------------------------------------------------------------------------
+# LoadBalancer = porta de ENTRADA do cluster. Numa nuvem (AWS/GCP/Azure) este
+# tipo cria um balanceador de carga real com IP público. No k3d, o
+# "ServiceLB" do k3s faz esse papel e o k3d publica a porta no seu computador
+# (ver scripts/k8s/criar-cluster.sh: -p 8080:8080@loadbalancer).
+#
+# Caminho de uma requisição:
+#   navegador → LoadBalancer :8080 → um dos pods frontend (nginx)
+#             → Service backend → um dos pods backend → Service fornecedores...
+# Cada seta "→ Service" é um ponto de balanceamento.
+# ============================================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  labels: { app: frontend }
+spec:
+  type: LoadBalancer
+  selector: { app: frontend }
+  ports:
+    - name: http
+      port: 8080               # porta externa (o overlay de dev troca para 8081)
+      targetPort: 8080         # porta do nginx dentro do container
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  labels: { app: frontend }
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: frontend }
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: { maxUnavailable: 0, maxSurge: 1 }
+  template:
+    metadata:
+      labels: { app: frontend }
+    spec:
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels: { app: frontend }
+      # Nó sumiu (desligado/sem rede)? Por padrão o Kubernetes espera 300s antes
+      # de recriar os pods em outro nó. 30s deixa a demonstração de falha visível.
+      tolerations:
+        - { key: node.kubernetes.io/unreachable, operator: Exists, effect: NoExecute, tolerationSeconds: 30 }
+        - { key: node.kubernetes.io/not-ready,   operator: Exists, effect: NoExecute, tolerationSeconds: 30 }
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 101           # usuário "nginx" da imagem nginx-unprivileged
+      containers:
+        - name: frontend
+          image: labsystem-frontend
+          ports:
+            - containerPort: 8080
+          livenessProbe:
+            httpGet: { path: /frontend-health, port: 8080 }
+            periodSeconds: 10
+          readinessProbe:
+            httpGet: { path: /frontend-health, port: 8080 }
+            periodSeconds: 5
+          resources:
+            requests: { cpu: 20m, memory: 16Mi }
+            limits:   { cpu: 200m, memory: 64Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
