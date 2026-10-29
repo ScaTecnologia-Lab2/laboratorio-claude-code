@@ -157,9 +157,9 @@ Isso reforça, em nível de plataforma, o que o hook `security-guardrail.js` já
 ### 7.1 Rodando localmente
 
 ```bash
-docker compose up --build -d     # sobe postgres (5151), node (3000) e fornecedores (3001)
+docker compose up --build -d     # sobe postgres (5151), frontend (3000), backend (3002) e fornecedores (3001)
 docker compose ps                # os 3 devem estar "Up"
-docker compose logs -f node      # logs
+docker compose logs -f backend      # logs
 docker compose down              # derruba (dados do Postgres ficam no volume)
 ```
 

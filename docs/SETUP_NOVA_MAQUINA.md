@@ -84,7 +84,7 @@ Se algum desses falhar de um jeito diferente do documentado em `docs/STATUS_LABO
 **Com Docker** (tudo de uma vez):
 
 ```bash
-docker compose up --build -d       # postgres (5151), node (3000), fornecedores (3001)
+docker compose up --build -d       # postgres (5151), frontend (3000), backend (3002), fornecedores (3001)
 docker compose down                # derrubar
 ```
 

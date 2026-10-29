@@ -421,9 +421,9 @@ CREATE TABLE fornecedores (
 Pré-requisito: Docker + Docker Compose.
 
 ```bash
-docker compose up --build -d     # postgres (5151), node (3000), fornecedores (3001)
+docker compose up --build -d     # postgres (5151), frontend (3000), backend (3002), fornecedores (3001)
 docker compose ps                # os 3 serviços "Up"
-docker compose logs -f node      # logs do app
+docker compose logs -f backend      # logs do app
 docker compose down              # parar (dados ficam no volume)
 ```
 
