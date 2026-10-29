@@ -224,7 +224,10 @@ jobs:
       - name: Gravar a nova versão em k8s/overlays/producao
         env:
           SHA: ${{ github.sha }}
+          USUARIO: ${{ vars.DOCKERHUB_USERNAME }}
         run: |
+          # Usuário do Docker Hub (vem da variável do repositório) e tag = SHA.
+          sed -i "s#docker.io/[^/]*/labsystem-#docker.io/$USUARIO/labsystem-#" k8s/overlays/producao/kustomization.yaml
           sed -i "s/^\(    newTag:\).*/\1 \"$SHA\"/" k8s/overlays/producao/kustomization.yaml
           grep -n "newName\|newTag" k8s/overlays/producao/kustomization.yaml
       - name: Publicar na branch producao (o Argo CD aplica em até ~3 min)

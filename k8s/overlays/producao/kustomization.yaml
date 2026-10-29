@@ -9,8 +9,9 @@
 #   CI publica a imagem → job de deploy (com aprovação) grava a nova tag na
 #   branch producao → Argo CD percebe a mudança → rolling update no cluster.
 #
-# Troque SEU_USUARIO_DOCKERHUB pelo seu usuário (ou rode
-# scripts/k8s/configurar-dockerhub.sh <usuario>).
+# SEU_USUARIO_DOCKERHUB não precisa ser editado aqui: o job de deploy troca
+# pelo valor da variável DOCKERHUB_USERNAME do repositório no GitHub ao gravar
+# a branch producao. (Veja o resultado: git show origin/producao:<este arquivo>)
 # ============================================================================
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
