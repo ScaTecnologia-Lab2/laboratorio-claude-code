@@ -1,19 +1,24 @@
 # ============================================================================
-# nginx.conf — container FRONTEND do LabSystem
+# default.conf.template — configuração do nginx do container FRONTEND
 # ----------------------------------------------------------------------------
 # Duas funções:
 #   1. Servidor de arquivos estáticos: entrega o HTML/CSS/JS de src/public.
 #   2. Reverse proxy: tudo que NÃO é arquivo (/login, /clientes, /me...) é
-#      repassado ao container BACKEND (Node), pelo nome "backend".
+#      repassado ao container BACKEND (Node).
 #
-# "backend" é resolvido pelo DNS interno:
-#   - no docker compose → nome do serviço no docker-compose.yml
-#   - no Kubernetes     → nome do Service (k8s/base/backend.yaml)
-# Por isso o MESMO container funciona nos dois lugares sem mudar nada.
+# É um TEMPLATE: ao iniciar, a imagem oficial do nginx troca ${...} pelos
+# valores das variáveis de ambiente e grava /etc/nginx/conf.d/default.conf.
+#   ${NGINX_LOCAL_RESOLVERS} → servidor DNS do ambiente (lido do
+#       /etc/resolv.conf: o DNS do Docker ou o do Kubernetes)
+#   ${BACKEND_HOST} → nome do backend: "backend" no compose (padrão do
+#       Dockerfile.frontend); nome completo no Kubernetes (k8s/base/frontend.yaml)
+#
+# Por que resolver o nome em tempo de execução (resolver + variável)?
+# Sem isso o nginx descobre o IP do backend UMA vez, ao iniciar: se o backend
+# for recriado com outro IP, o nginx continua batendo no IP antigo (502) — e,
+# se o DNS estiver fora do ar na partida, o nginx nem sobe.
 # ============================================================================
-upstream backend {
-    server backend:3000;
-}
+resolver ${NGINX_LOCAL_RESOLVERS} valid=10s ipv6=off;
 
 server {
     listen 8080;                      # imagem sem root: não pode usar a porta 80
@@ -25,7 +30,7 @@ server {
     location = /         { try_files /index.html   =404; }
     location = /api-docs { try_files /swagger.html =404; }
 
-    # Usado pelo Kubernetes para saber se o nginx está vivo.
+    # Usado pelo Docker/Kubernetes para saber se o nginx está vivo.
     location = /frontend-health {
         access_log off;
         default_type text/plain;
@@ -38,7 +43,8 @@ server {
     }
 
     location @backend {
-        proxy_pass         http://backend;
+        set $backend http://${BACKEND_HOST}:3000;   # variável → resolvido a cada 10s
+        proxy_pass         $backend;
         proxy_set_header   Host              $host;
         proxy_set_header   X-Real-IP         $remote_addr;
         proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
