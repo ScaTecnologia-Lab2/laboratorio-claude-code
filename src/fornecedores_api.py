@@ -3,6 +3,7 @@ import os
 import psycopg2
 import psycopg2.extras
 import re
+import socket
 
 app = Flask(__name__)
 
@@ -12,7 +13,8 @@ DB = {
     'port':     int(os.environ.get('DB_PORT', '5151')),
     'database': 'laboratorio',
     'user':     'postgres',
-    'password': '5151',  # nosec B105: credencial de laboratório local, não de produção (ver CLAUDE.md)
+    # No Kubernetes vem de um Secret (DB_PASSWORD); o padrão é o de desenvolvimento.
+    'password': os.environ.get('DB_PASSWORD', '5151'),
 }
 
 CAMPOS = ['nomefantasia', 'nomeempresa', 'endereco', 'bairro', 'cidade', 'estado', 'email', 'telefone', 'cnpj']
@@ -54,6 +56,12 @@ def init_db():
             """)
         conn.commit()
     print('Tabela fornecedores verificada/criada.')
+
+
+@app.route('/health', methods=['GET'])
+def health():
+    # Usada pelo Docker/Kubernetes para saber se o processo está vivo.
+    return jsonify({'status': 'ok', 'servido_por': socket.gethostname()})
 
 
 @app.route('/fornecedores', methods=['GET'])

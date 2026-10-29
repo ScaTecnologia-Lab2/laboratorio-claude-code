@@ -1,6 +1,8 @@
 const http = require('http');
 const fs   = require('fs');
 const path = require('path');
+const os   = require('os');
+const { pool } = require('./db');
 
 const usuariosModule = require('./usuarios');
 const clientesModule = require('./clientes');
@@ -37,6 +39,8 @@ function servirArquivo(res, filePath) {
 // ── Server ────────────────────────────────────────────────────────────────────
 
 const server = http.createServer(async (req, res) => {
+  // Nome da cópia (container/pod) que atendeu — mostra o load balancer distribuindo.
+  res.setHeader('X-Servido-Por', os.hostname());
   const url     = req.url.split('?')[0];
   const qs      = new URLSearchParams(req.url.includes('?') ? req.url.split('?')[1] : '');
   const partes  = url.split('/').filter(Boolean);
@@ -44,6 +48,20 @@ const server = http.createServer(async (req, res) => {
   const id      = partes[1] ? Number(partes[1]) : null;
   const limit   = qs.has('limit')  ? Math.max(1, parseInt(qs.get('limit'),  10) || 10) : null;
   const offset  = qs.has('offset') ? Math.max(0, parseInt(qs.get('offset'), 10) || 0)  : 0;
+
+  // ── Saúde (usada pelo Docker/Kubernetes, sem autenticação) ─────────────────
+  // /health: o processo está vivo?  /pronto: consegue falar com o banco?
+
+  if (url === '/health') return responder(res, 200, { status: 'ok' });
+  if (url === '/pronto') {
+    try {
+      await pool.query('SELECT 1');
+      return responder(res, 200, { status: 'pronto' });
+    } catch {
+      return responder(res, 503, { status: 'sem banco' });
+    }
+  }
+
   const sessao  = await getSessao(req);
 
   // ── Páginas estáticas ──────────────────────────────────────────────────────

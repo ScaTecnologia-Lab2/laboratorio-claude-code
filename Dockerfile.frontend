@@ -1,0 +1,18 @@
+# ============================================================================
+# Dockerfile.frontend — container FRONTEND (nginx + páginas de src/public)
+# ----------------------------------------------------------------------------
+# Uso normal: `docker compose up --build`.
+# Isolado:    docker build -f Dockerfile.frontend -t labsystem-frontend .
+#             (sozinho ele sobe, mas as rotas da API dão 502 sem o backend)
+# ============================================================================
+# nginx-unprivileged: mesma imagem oficial do nginx, mas roda como usuário
+# comum (não-root) na porta 8080 — boa prática de segurança de contêiner.
+FROM nginxinc/nginx-unprivileged:1.30-alpine
+# Aplica as correções de segurança do Alpine publicadas depois da imagem base
+# e remove o curl (o nginx não precisa dele): o Trivy barra CVEs com correção.
+USER root
+RUN apk upgrade --no-cache && apk del --no-cache curl
+USER 101
+COPY frontend/nginx.conf /etc/nginx/conf.d/default.conf
+COPY src/public /usr/share/nginx/html
+EXPOSE 8080

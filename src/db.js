@@ -5,7 +5,8 @@ const config = {
   host: process.env.DB_HOST || 'localhost',
   port: Number(process.env.DB_PORT) || 5151,
   user: 'postgres',
-  password: '5151',
+  // No Kubernetes vem de um Secret (DB_PASSWORD); o padrão é o de desenvolvimento.
+  password: process.env.DB_PASSWORD || '5151',
 };
 
 const pool = new Pool({ ...config, database: 'laboratorio' });
