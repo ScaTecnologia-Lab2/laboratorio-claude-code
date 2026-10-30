@@ -1,0 +1,31 @@
+# ============================================================================
+# Ambiente PRODUÇÃO — namespace labsystem, porta 8080
+# ----------------------------------------------------------------------------
+# NINGUÉM aplica este arquivo à mão. Quem aplica é o Argo CD (GitOps), que
+# observa a branch "producao" do GitHub (k8s/argocd/application.yaml).
+#
+# As imagens vêm do Docker Hub. A tag (newTag) é o SHA do commit publicado e
+# é ATUALIZADA PELA ESTEIRA (job deploy-production do docker-build.yml):
+#   CI publica a imagem → job de deploy (com aprovação) grava a nova tag na
+#   branch producao → Argo CD percebe a mudança → rolling update no cluster.
+#
+# SEU_USUARIO_DOCKERHUB não precisa ser editado aqui: o job de deploy troca
+# pelo valor da variável DOCKERHUB_USERNAME do repositório no GitHub ao gravar
+# a branch producao. (Veja o resultado: git show origin/producao:<este arquivo>)
+# ============================================================================
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: labsystem
+resources:
+  - namespace.yaml
+  - ../../base
+images:
+  - name: labsystem-backend
+    newName: docker.io/SEU_USUARIO_DOCKERHUB/labsystem-backend
+    newTag: latest
+  - name: labsystem-fornecedores
+    newName: docker.io/SEU_USUARIO_DOCKERHUB/labsystem-fornecedores
+    newTag: latest
+  - name: labsystem-frontend
+    newName: docker.io/SEU_USUARIO_DOCKERHUB/labsystem-frontend
+    newTag: latest

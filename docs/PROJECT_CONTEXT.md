@@ -11,9 +11,9 @@ Contexto completo do projeto construído durante as sessões de laboratório com
 **Runtime principal:** Node.js 24 LTS (CommonJS)
 **Serviço auxiliar:** Python 3.13 + Flask (CRUD de Fornecedores)
 **Banco de dados:** PostgreSQL 16 — `localhost:5151` — banco `laboratorio`
-**Porta Node.js:** `3000`
+**Porta Node.js:** `3000` sem Docker; no compose o nginx (`frontend`) usa a `3000` e o backend Node fica em `127.0.0.1:3002`
 **Porta Python:** `3001`
-**Execução:** `docker compose up --build -d` (ou os dois processos manualmente)
+**Execução:** `docker compose up --build -d` (ou os dois processos manualmente); Kubernetes local: dev em `:8081`, produção (Argo CD) em `:8080`
 **Repositório:** https://github.com/ScaTecnologia-Lab2/laboratorio-claude-code (público) — board: https://github.com/orgs/ScaTecnologia-Lab2/projects/1
 
 ---
@@ -155,6 +155,26 @@ Feita numa máquina Linux nova, com Docker permitido (as máquinas Unisys anteri
 
 ---
 
+## Sessão 4 — Containers separados, Kubernetes, GitOps e carga (2026-10-29 e 2026-10-30)
+
+Detalhes e problemas encontrados: `docs/STATUS_LABORATORIO.md` (seção da sessão) e os guias `CONTAINERS_K8S_GUIA.md`, `K8S_FLUXO_DEV_CICD.md`, `K8S_TESTE_DE_CARGA.md`.
+
+### 24. Frontend separado do backend
+- Novo container `frontend` (`Dockerfile.frontend`, nginx não-root) entrega `src/public/` e repassa as rotas da API ao backend; o serviço `node` do compose virou `backend` (porta 3002, só localhost). 4 containers: frontend → backend → fornecedores + Postgres.
+- Rotas de saúde `GET /health` e `GET /pronto` (banco) no Node, `GET /health` no Python; cabeçalho `X-Servido-Por` (hostname) para ver o balanceamento; `DB_PASSWORD` por variável; pool de conexões na API Python.
+
+### 25. Kubernetes (k3d) e Argo CD
+- Cluster k3d `labsystem` (1 servidor + 2 agentes) criado por `scripts/k8s/criar-cluster.sh`; manifestos Kustomize em `k8s/` (base + overlays `dev` e `producao`): Deployments com probes, HPA por CPU, PDB, StatefulSet do Postgres, LoadBalancer no frontend.
+- Dev: `sh scripts/k8s/dev-deploy.sh` (namespace `labsystem-dev`, :8081). Produção: Argo CD observa a branch `producao` (namespace `labsystem`, :8080).
+- Teste de carga com k6 (`scripts/k8s/teste-carga.sh`): 60 usuários → HPA 2→6 backends, 0% de erros; matar pod, rolling update e `drain` sem falhas.
+
+### 26. Esteira até a produção
+- `docker-build.yml` publica as 3 imagens no **Docker Hub** (antes ghcr.io) e o deploy (com aprovação) grava a tag na branch `producao`; o GitHub nunca acessa o cluster.
+- 2026-10-30: primeiro deploy de ponta a ponta (PRs #42 e #47, deploy `0f3d3c7`) e ciclo repetido com a mudança "V4" da landing (PR #48, deploy `b6238f2`).
+- Deploy passou a **acrescentar um commit** na `producao` em vez de `git push --force` (PR #49, em revisão): `git log --first-parent origin/producao` lista os deploys.
+
+---
+
 ## Estrutura de arquivos
 
 ```
@@ -163,6 +183,8 @@ laboratorio-claude-code/
 │   ├── server.js               # HTTP server Node.js, roteamento, auth, proxy
 │   ├── usuarios.js             # CRUD usuários + hash de senha + migração
 │   ├── clientes.js             # CRUD clientes
+│   ├── routes/, middlewares/, models/  # Handlers por recurso, sessão por cookie, validação de avaliações
+│   ├── produtos.js, estoque.js, carrinho.js, avaliacoes.js, eventos.js  # Recursos extras (Redis/Mongo em memória: redis.js, mongo.js)
 │   ├── sessoes.js              # Sessões na tabela sessoes (PostgreSQL, 7 dias)
 │   ├── db.js                   # Conexão PostgreSQL (dois pools)
 │   ├── fornecedores_api.py     # API Python Flask — CRUD Fornecedores (porta 3001)
@@ -191,8 +213,13 @@ laboratorio-claude-code/
 │   └── ARCHITECTURE.md        # Diagramas, camadas, fluxos, segurança
 ├── DOCS.md                     # Descrição técnica de cada arquivo
 ├── CLAUDE.md                   # Instruções do projeto para o Claude Code
-├── package.json                # Node.js — dependência: pg ^8.21.0
-└── requirements.txt            # Python — flask >=3.0.0, psycopg2-binary >=2.9.9
+├── frontend/                   # Template do nginx (container frontend)
+├── k8s/                        # Manifestos Kubernetes (Kustomize) + Argo CD
+├── scripts/k8s/                # Cluster k3d, deploy dev, Argo CD, teste de carga
+├── Dockerfile, Dockerfile.frontend, Dockerfile.python
+├── docker-compose.yml, docker-compose.hub.yml
+├── package.json                # Node.js — dependência: pg ^8.23.0
+└── requirements.txt            # Python — flask >=3.1.3, psycopg2-binary >=2.9.13
 ```
 
 ---
@@ -365,6 +392,8 @@ pytest tests/ -v
 | Corrigir a imagem em vez de afrouxar o scan | Ferramentas não usadas no runtime saem da imagem; `ignore-unfixed` só para CVEs sem correção |
 | Actions de terceiros fixadas por SHA | Tags podem ser reapontadas ou apagadas; o SHA não |
 | Runtimes só em versões LTS/suportadas | Node 24 LTS, Python 3.13; trocas de versão são decisão planejada (Dependabot ignora) |
+| GitOps: o cluster puxa, o GitHub não empurra | O cluster está na máquina local e não deve ser exposto à internet nem ter credencial no GitHub |
+| Um commit por deploy na branch `producao` | Histórico de deploys preservado e rollback registrado; `--force` apagava o deploy anterior |
 
 ---
 
@@ -375,7 +404,8 @@ pytest tests/ -v
 | `usuarios.test.js` desatualizado para testes com senha/role | Dívida técnica | Baixa |
 | Paginação no frontend de clientes (a API já limita a 100) | Funcionalidade | Baixa |
 | Servir o Flask com gunicorn na imagem Python | DevOps | Média (produção) |
-| Node 24 → 26 LTS (depois de 2026-10-28) | Manutenção | Baixa |
+| Aprovar/mergear o PR #49 e rodar um deploy real para validar o histórico da `producao` | DevOps | Alta |
+| Node 24 → 26 LTS (conferir se já é LTS) | Manutenção | Baixa |
 | HTTPS para ambiente de produção | Segurança | Alta (produção) |
 
 ---
@@ -402,6 +432,7 @@ pytest tests/ -v
 | `docs/STATUS_LABORATORIO.md` | Onde paramos, o que foi feito, próximos passos (ler primeiro) |
 | `docs/ROTEIRO_CICD_CLAUDE_CODE.md`, `DEVOPS_GUIA.md` | Como a esteira foi construída e a teoria de DevOps |
 | `docs/COLABORACAO_EQUIPE.md`, `EXERCICIO_MULTIPLOS_DEVS.md`, `BACKLOG_KANBAN.md`, `SIMULANDO_2_DEVS.md` | Trabalho em equipe: branches, conflitos, board, vários devs com containers |
+| `docs/CONTAINERS_K8S_GUIA.md`, `K8S_FLUXO_DEV_CICD.md`, `K8S_TESTE_DE_CARGA.md` | Containers, Kubernetes, fluxo PR → produção com Argo CD, teste de carga |
 | `docs/SETUP_NOVA_MAQUINA.md` | Levar o laboratório para outra máquina |
 
 ---

@@ -1,0 +1,53 @@
+# ============================================================================
+# default.conf.template — configuração do nginx do container FRONTEND
+# ----------------------------------------------------------------------------
+# Duas funções:
+#   1. Servidor de arquivos estáticos: entrega o HTML/CSS/JS de src/public.
+#   2. Reverse proxy: tudo que NÃO é arquivo (/login, /clientes, /me...) é
+#      repassado ao container BACKEND (Node).
+#
+# É um TEMPLATE: ao iniciar, a imagem oficial do nginx troca ${...} pelos
+# valores das variáveis de ambiente e grava /etc/nginx/conf.d/default.conf.
+#   ${NGINX_LOCAL_RESOLVERS} → servidor DNS do ambiente (lido do
+#       /etc/resolv.conf: o DNS do Docker ou o do Kubernetes)
+#   ${BACKEND_HOST} → nome do backend: "backend" no compose (padrão do
+#       Dockerfile.frontend); nome completo no Kubernetes (k8s/base/frontend.yaml)
+#
+# Por que resolver o nome em tempo de execução (resolver + variável)?
+# Sem isso o nginx descobre o IP do backend UMA vez, ao iniciar: se o backend
+# for recriado com outro IP, o nginx continua batendo no IP antigo (502) — e,
+# se o DNS estiver fora do ar na partida, o nginx nem sobe.
+# ============================================================================
+resolver ${NGINX_LOCAL_RESOLVERS} valid=10s ipv6=off;
+
+server {
+    listen 8080;                      # imagem sem root: não pode usar a porta 80
+    root   /usr/share/nginx/html;
+
+    # Nome da cópia do frontend que respondeu (veja com: curl -I).
+    add_header X-Frontend-Pod $hostname always;
+
+    location = /         { try_files /index.html   =404; }
+    location = /api-docs { try_files /swagger.html =404; }
+
+    # Usado pelo Docker/Kubernetes para saber se o nginx está vivo.
+    location = /frontend-health {
+        access_log off;
+        default_type text/plain;
+        return 200 "ok\n";
+    }
+
+    # Existe o arquivo? Entrega. Não existe? É uma rota da API → backend.
+    location / {
+        try_files $uri @backend;
+    }
+
+    location @backend {
+        set $backend http://${BACKEND_HOST}:3000;   # variável → resolvido a cada 10s
+        proxy_pass         $backend;
+        proxy_set_header   Host              $host;
+        proxy_set_header   X-Real-IP         $remote_addr;
+        proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Proto $scheme;
+    }
+}

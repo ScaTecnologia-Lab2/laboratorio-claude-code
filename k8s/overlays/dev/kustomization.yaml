@@ -1,0 +1,27 @@
+# ============================================================================
+# Ambiente DEV (no seu cluster local) — namespace labsystem-dev, porta 8081
+# ----------------------------------------------------------------------------
+# Usa as imagens construídas na SUA máquina (tag "dev"), importadas para
+# dentro do cluster por scripts/k8s/dev-deploy.sh — não precisa de Docker Hub.
+# Aplicado à mão:  kubectl apply -k k8s/overlays/dev
+# ============================================================================
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: labsystem-dev
+resources:
+  - namespace.yaml
+  - ../../base
+images:
+  - name: labsystem-backend
+    newTag: dev
+  - name: labsystem-fornecedores
+    newTag: dev
+  - name: labsystem-frontend
+    newTag: dev
+patches:
+  # Porta externa diferente da produção (8080), para os dois rodarem juntos.
+  - target: { kind: Service, name: frontend }
+    patch: |-
+      - op: replace
+        path: /spec/ports/0/port
+        value: 8081

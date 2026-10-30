@@ -197,7 +197,7 @@ Para cada etapa, o mercado reconhece práticas e ferramentas específicas. A tab
 ┌──────────────────────────────────────────────────────────────────────────┐
 │         GITHUB ACTIONS — docker-build.yml                                │
 │  push/PR (automático): [build-node|python] → [scan Trivy]               │
-│  workflow_dispatch (manual): + [publish GHCR] + [deploy production]     │
+│  workflow_dispatch (manual): + [publish Docker Hub] + [deploy GitOps]   │
 │  ⚠ Deploy só com aprovação humana no Environment "production".          │
 └──────────────────────────────────────────────────────────────────────────┘
 ```
