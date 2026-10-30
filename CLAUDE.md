@@ -8,6 +8,7 @@
 - Docker Compose — 4 containers: frontend (nginx) + backend (Node) + fornecedores (Python) + Postgres (`docker compose up --build -d`)
 - Kubernetes local — k3d + kubectl (`~/.local/bin`), manifestos Kustomize em `k8s/`, GitOps com Argo CD; imagens no Docker Hub
 - JavaScript puro no frontend (HTML + CSS + Fetch API)
+- Painel de Aprendizado (`painel/`) — Node nativo, porta 3100, roda no computador do dev (fora dos containers): containers, Kubernetes e console SQL; `npm run painel`
 - PostgreSQL — `localhost:5151` — banco `laboratorio`
 - Driver Node: `pg` (node-postgres)
 - Driver Python: `psycopg2-binary`
@@ -96,6 +97,10 @@ bandit -r src/ -q                     # SAST Python
 - Nunca retornar o campo `senha` nas respostas da API.
 - Queries SQL sempre parametrizadas (`$1`, `$2`...) — nunca interpolação de string.
 - Proteção de rotas sempre no servidor — nunca confiar só no frontend.
+- Mudanças vão por branch + PR (a `main` não aceita push direto). O Claude abre o PR e espera o CI; **a aprovação é de outra conta** e o usuário a dá (só aprove com `sca-dev1` se o usuário pedir explicitamente). Deploy em produção: o usuário aprova o Environment `production`.
+- Nunca dispensar alerta de segurança (CodeQL etc.), alterar ruleset/segredos nem apontar o `test:integration` para o banco da 5151 sem perguntar antes.
+- O Console SQL do painel conecta no banco de desenvolvimento (5151): começa em somente leitura; só o modo "Gravar" altera de verdade.
+- Ao terminar uma sessão com mudanças relevantes, atualize `docs/STATUS_LABORATORIO.md` (e regenere o `.docx`).
 
 ## Credenciais padrão (desenvolvimento)
 

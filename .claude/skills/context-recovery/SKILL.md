@@ -40,10 +40,12 @@ Se a tarefa da sessão for sobre CI/CD, containers ou colaboração em equipe, `
 ```bash
 git status
 git log --oneline -10
+gh pr list --state open        # PRs aguardando checks/aprovação
 ```
 
 - `git status` revela arquivos modificados não commitados — indica trabalho em andamento.
 - `git log` mostra o histórico recente e o que foi entregue.
+- `gh pr list` mostra o que ainda está em revisão. Para saber o que está rodando na máquina (Compose, cluster k3d, painel na 3100) use o painel ou `docker ps` / `kubectl get pods -A`; o STATUS (seção 6) descreve o estado em que a última sessão terminou.
 
 ### 3. Verificar estrutura de arquivos atual
 

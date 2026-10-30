@@ -2,7 +2,7 @@
 
 > **Leia este arquivo primeiro, antes de qualquer outro documento.** Ele existe para que uma nova sessão do Claude Code (ou você, voltando depois de um tempo, ou em outra máquina) saiba em 1 minuto o que já foi feito, o que falta, e o que fazer a seguir — sem precisar reconstruir o histórico da conversa.
 >
-> Última atualização: 2026-10-30. Se você (Claude Code) alterar algo relevante ao estado do laboratório, **atualize este arquivo antes de terminar a sessão**.
+> Última atualização: 2026-10-30 (fim da sessão do painel). Se você (Claude Code) alterar algo relevante ao estado do laboratório, **atualize este arquivo antes de terminar a sessão**.
 
 ---
 
@@ -102,8 +102,14 @@ Isto é o que falta para "levar o laboratório para valer" (itens riscados já f
 24. ~~Guia da fábrica de software~~ — feito em 2026-09-29: `docs/FABRICA_DE_SOFTWARE.md`, o passo a passo didático do card à produção para gerente, dev, revisor e aprovador (tela e CLI em cada etapa; containers de dev e produção; backup/restauração do banco testados de verdade; tag SemVer; deploy com aprovação no Environment `production`; rollback por tag; hotfix). A pasta `~/Documentos/laboratorio-claude-code` (porta 3000) passa a ser tratada como **produção**: só roda a `main`. Novo card **#37** (busca de clientes, Dev 1) criado sem responsável, em **To Do**, como exercício do guia. **Atenção:** as automações do board não moveram #27/#29 para Concluído nem adicionaram o #37 ao board — acertados à mão; conferir *Projects → ⋯ → Workflows*.
 25. ~~Card #37~~ — concluído em 2026-10-30 (PR #39, mergeado). Histórico (2026-10-05): card #37 feito pelo Dev 1 (branch criada em outra máquina, trazida para `~/devs/dev1`). O 1º commit saiu com o e-mail de autor errado (ID de uma conta de terceiro) e foi corrigido com `--amend --reset-author`; a revisão local achou 3 critérios de aceite não cumpridos, corrigidos num 2º commit. **PR #39 aprovado, mas bloqueado** pelo scan Trivy da imagem Python (CVE-2026-103111 na `libpcre2`, da imagem base, não do PR), o que afeta todos os PRs. Correção em card de Bug próprio (Dev 2, `Dockerfile.python`); depois do merge dela, rodar de novo os checks do #39 e fazer o merge. **Na outra máquina:** corrigir `git config user.email` da pasta do Dev 1 para `333777540+sca-dev1@users.noreply.github.com`.
 26. **Para você praticar:** depois do #37, as Etapas 14 a 16 do guia: tag `v1.0.0` do estado atual de produção, `v1.1.0` com o #37, deploy com aprovação e rollback.
-
 27. ~~Painel de Aprendizado + Swagger completo~~ — feito e em produção em 2026-10-30: `npm run painel` → http://localhost:3100 com telas de Containers, Kubernetes e Console SQL (modos leitura/simular/gravar), cada uma explicando o que mostra (guia: `docs/PAINEL_APRENDIZADO.md`); `swagger.json` cobre todas as rotas (36 caminhos). PR #51 aprovado por sca-dev1 e mergeado (`4588d35`); deploy aprovado gravou o commit `92aa71a` na `producao` e o Argo CD ficou `Synced`/`Healthy` com as 3 imagens na tag `4588d35` (a produção em :8080 e o dev em :8081 já servem o Swagger novo). O CodeQL acusou `js/sql-injection` (alerta #12, alto) na linha que executa o SQL digitado no Console SQL; foi **dispensado como "won't fix" com justificativa** (rodar SQL do usuário é a função; mitigado por 127.0.0.1 + Host/Origin/`X-Painel`, `BEGIN READ ONLY` por padrão, uma instrução por vez, timeout, `COPY` bloqueado). Testado de verdade: API do painel contra Docker, k3d e Postgres descartável; rotas novas do Swagger contra o backend. **Telas conferidas no navegador** (Chrome headless via CDP, com a extensão do Chrome desconectada): as 4 renderizam com dados reais (Docker, k3d e um Postgres descartável), logs, troca de namespace e os 3 modos do Console SQL funcionam (senha oculta, simular não grava, gravar exige confirmação). Achados e corrigidos no PR seguinte: menu do cabeçalho estourava a largura no celular (647 px em 390) e `favicon.ico` dava 404. O Console SQL cobre só o banco do Compose, não o Postgres do cluster. **Fora do escopo, para depois:** o cabeçalho do próprio LabSystem (`src/public/css/styles.css`, altura fixa e menu sem quebra de linha) também estoura a largura no celular.
+28. ~~Correção do painel no celular e favicon~~ — PR #53 mergeado em 2026-10-30 (`37a13a9`); só afeta o painel local, sem deploy.
+29. **Próximos passos sugeridos (nenhum é urgente, escolha com o usuário):**
+    - **Cabeçalho do LabSystem no celular:** `src/public/css/styles.css` (`.header` com altura fixa, `.nav` sem quebra) estoura a largura em telas estreitas; o painel já tem a correção em `painel/public/css/painel.css` (media query `max-width: 700px`) como modelo.
+    - **Console SQL do cluster:** o painel só conecta no Postgres do Compose (5151); o do Kubernetes é um pod (poderia usar `kubectl port-forward`).
+    - **Produção "de verdade":** HTTPS, Flask com gunicorn (hoje servidor de desenvolvimento) e backup do Postgres (sem backup; ver o incidente do `TRUNCATE` abaixo).
+    - **Node 24 → 26 LTS** (conferir se já é LTS) e paginação do frontend de clientes (a API limita a 100).
+    - **Praticar o guia `docs/FABRICA_DE_SOFTWARE.md`** (Etapas 14 a 16: tags `v1.0.0`/`v1.1.0` e rollback).
 
 ---
 
@@ -134,9 +140,25 @@ Ver `docs/SETUP_NOVA_MAQUINA.md` para o passo a passo completo de portabilidade 
 | `npm run test:integration` apaga a tabela `usuarios` | `src/usuarios.test.js` faz `TRUNCATE` (no CI o Postgres é descartável) | Rode contra um Postgres descartável: `docker run --rm -d --name pg-teste -p 127.0.0.1:5199:5432 -e POSTGRES_PASSWORD=5151 postgres:16-alpine` e `DB_PORT=5199 npm run test:integration`. Nunca contra a 5151. |
 | Cluster k3d + compose ao mesmo tempo deixam a máquina sem RAM | 8 GB no total; cluster com Argo CD usa ~1,8 GB | Pare um antes de subir o outro (`docker compose down` / `sh scripts/k8s/destruir-cluster.sh`). |
 | Testes `teste_servidor.js` não estão na esteira de CI | Exigem o servidor Node rodando de verdade na porta 3000, o que complica automação simples em CI | Ficou de fora por decisão consciente (ver `docs/ROTEIRO_CICD_CLAUDE_CODE.md`, Passo 4) — rode manualmente quando precisar: `node src/server.js` em um terminal, `node src/teste_servidor.js` em outro. |
+| A extensão do Chrome do Claude Code aparece "não conectada" | A extensão precisa estar instalada e logada na mesma conta; sem ela as ferramentas `mcp__claude-in-chrome__*` não funcionam | Use o Google Chrome instalado (`/usr/bin/google-chrome`) em modo headless com `--remote-debugging-port` e fale com ele pelo protocolo CDP (WebSocket nativo do Node 22): foi assim que as telas do painel foram verificadas (clicar, ler o DOM, capturar o console e tirar screenshots). |
+| `pkill -f <texto>` derruba o próprio comando do shell (saída 144) | O `-f` casa com a linha de comando inteira, inclusive a do shell que contém o texto | Mate pela porta: `fuser -k 3100/tcp` |
+| O painel (`npm run painel`) não sobe sozinho | É um processo local, fora dos containers | `npm run painel` num terminal (ou em segundo plano); parar com `fuser -k 3100/tcp`. Console SQL → Postgres do Compose; se ele estiver parado a tela mostra a dica `docker compose up -d postgres` |
+| O CodeQL acusa `js/sql-injection` no painel | A linha que executa o SQL digitado no Console SQL é, por definição, SQL do usuário | Alerta #12 foi **dispensado como "won't fix"** com justificativa (só local, modo leitura por padrão, uma instrução por vez). Não é para "corrigir" parametrizando: perderia a função do console |
 
 ---
 
 ## 6. Para a próxima sessão do Claude Code
 
-Se você é uma nova sessão retomando este projeto: a skill `context-recovery` (`.claude/skills/context-recovery/SKILL.md`) já foi atualizada para ler este arquivo primeiro. Depois de ler este arquivo, confirme com o usuário qual dos itens da seção 3 ele quer atacar agora, antes de propor qualquer implementação nova — não presuma que ele quer continuar exatamente de onde a lista para, porque a ordem ali é uma sugestão, não uma obrigação.
+Se você é uma nova sessão retomando este projeto: a skill `context-recovery` (`.claude/skills/context-recovery/SKILL.md`) lê este arquivo primeiro. Depois de lê-lo, confirme com o usuário qual dos itens da seção 3 ele quer atacar, antes de propor qualquer implementação nova — a ordem ali é uma sugestão, não uma obrigação.
+
+### Estado ao fim da sessão de 2026-10-30
+- **Git:** `main` em `37a13a9` (ou mais novo); nenhum PR aberto além do que estiver listado em `gh pr list`; só existem `main` (local) e `main`/`producao` (remoto).
+- **Produção (Argo CD, :8080):** versão `4588d35` (Swagger completo), `Synced`/`Healthy`. Dev (:8081) na mesma versão. `git log --first-parent origin/producao` lista os deploys.
+- **Máquina:** cluster k3d **e** Compose ligados ao mesmo tempo (a RAM livre ficou em ~1,4 GB: se a máquina travar, `sh scripts/k8s/destruir-cluster.sh` ou `docker compose down`); o Postgres do Compose (5151, dados de desenvolvimento) foi religado; o painel pode estar rodando em segundo plano na 3100.
+- **Fora dos containers:** o painel (`painel/`) nunca vai para produção — é uma ferramenta de estudo local.
+
+### Como trabalhamos (combinados desta sessão)
+- Fluxo padrão: branch → commit → push → PR → esperar os checks → **aprovação de outra conta** → merge (`--merge --delete-branch`) → limpar a branch local. Deploy: Actions → *Run workflow* com publish + deploy; **o usuário aprova o Environment `production`** e depois se confere a branch `producao` e o Argo CD.
+- Quem aprova: o usuário aprova no GitHub. Aprovar com a conta `sca-dev1` pelo `gh auth switch` só quando o usuário pedir **explicitamente** naquele PR; o modo automático do Claude Code bloqueou a aprovação de um PR do próprio Claude depois de um alerta de segurança dispensado — nesse caso, parar e pedir ao usuário.
+- Nunca dispensar alerta de segurança (CodeQL etc.), mexer em ruleset/segredos ou rodar `test:integration` contra o banco da 5151 sem perguntar.
+- Alterou algo relevante? Atualize este arquivo, regenere o `.docx` (`sh docs/atualizar_docx.sh`, restaurando com `git checkout` os que não mudaram) e abra PR.
