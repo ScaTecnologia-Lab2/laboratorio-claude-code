@@ -77,6 +77,7 @@ laboratorio-claude-code/
 │   ├── usuarios.test.js, teste_*.js ← Testes (unitários e de integração)
 │   ├── index.js                ← Arquivo de exploração inicial (não usado)
 │   └── public/                 ← Páginas HTML, css/styles.css, js/<página>.js, swagger
+├── painel/                     ← Painel de Aprendizado (porta 3100): servidor.js, lib.js (+ teste), public/ (4 telas)
 ├── tests/                      ← Testes Python (pytest): test_fornecedores_api.py, conftest.py
 ├── docs/                       ← Documentação (ver tabela no CLAUDE.md); .md é a fonte, .docx é gerado
 ├── .github/
@@ -374,6 +375,23 @@ Lógica de interface do CRUD de Fornecedores. Mesmo padrão de `clientes.js`. Ge
 
 ### `src/public/js/usuarios.js`
 Lógica de interface do CRUD de Usuários. Chama `verificarAuth('Admin')` ao carregar para garantir acesso restrito. Inclui seletor de role no formulário.
+
+---
+
+## Painel de Aprendizado (`painel/`)
+
+Telas para acompanhar containers, Kubernetes e o banco, com explicações em cada uma. Roda **no computador do dev** (não em container) em `127.0.0.1:3100`: `npm run painel`. Guia completo e modelo de segurança: `docs/PAINEL_APRENDIZADO.md`.
+
+| Arquivo | Função |
+|---|---|
+| `painel/servidor.js` | Servidor Node (módulos nativos + `pg`): `/api/containers`, `/api/k8s`, `/api/sql/*`; trava de Host/Origin/`X-Painel`; reaproveita `src/public/css/styles.css` |
+| `painel/lib.js` / `lib.test.js` | Validação de nomes e namespaces, bloqueio de SQL perigoso, máscara de `senha`, resumo de pods (testado no `npm run test:unit`) |
+| `painel/public/index.html` | Mapa da aplicação com o estado em Compose, K8s dev e K8s produção |
+| `painel/public/containers.html` | Containers do Docker: situação, saúde, CPU/memória, logs |
+| `painel/public/kubernetes.html` | Nós e pods, Deployments, Services, HPA, eventos, logs de pod |
+| `painel/public/sql.html` | Console SQL (somente leitura / simular / gravar) com exemplos |
+
+O `src/public/swagger.json` cobre todas as rotas (Produtos, Estoque, Carrinho, Avaliações, Eventos, Relatório e Saúde, além das anteriores).
 
 ---
 

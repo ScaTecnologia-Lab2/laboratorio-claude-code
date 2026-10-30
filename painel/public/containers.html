@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Painel — Containers</title>
+  <link rel="stylesheet" href="/css/styles.css" />
+  <link rel="stylesheet" href="/css/painel.css" />
+</head>
+<body>
+
+  <header class="header">
+    <a href="/" class="header-logo">Lab<span>System</span><small>Painel</small></a>
+    <nav class="nav" aria-label="Menu do painel">
+      <a href="/">Início</a>
+      <a href="/containers.html" class="active">Containers</a>
+      <a href="/kubernetes.html">Kubernetes</a>
+      <a href="/sql.html">Console SQL</a>
+      <a href="http://localhost:3000/api-docs">API Docs</a>
+      <a href="http://localhost:3000/">LabSystem</a>
+    </nav>
+  </header>
+
+  <main class="main">
+    <div class="container container-wide">
+
+      <h1 class="page-title">Containers (Docker)</h1>
+      <p class="page-sub">Cada parte da aplicação roda isolada dentro do seu próprio container. Aqui você vê quais estão de pé, quanto consomem e o que estão escrevendo nos logs.</p>
+
+      <details class="explica" open>
+        <summary>O que você está vendo nesta tela</summary>
+        <p>Esta lista vem do comando <code>docker ps -a</code> (estado) e <code>docker stats</code> (consumo), atualizada a cada 5 segundos.</p>
+        <dl>
+          <dt>Container</dt>
+          <dd>Um processo isolado, empacotado com tudo que precisa para rodar (programa, bibliotecas, configuração). É como uma "mini máquina" leve. Ele é criado a partir de uma <strong>imagem</strong> (a receita pronta, por exemplo <code>postgres:16-alpine</code>).</dd>
+          <dt>Os 4 containers do LabSystem</dt>
+          <dd><strong>frontend</strong> (nginx: entrega as páginas e repassa a API) → <strong>backend</strong> (Node.js: regras do sistema e login) → <strong>fornecedores</strong> (Python/Flask) e <strong>postgres</strong> (o banco de dados). Eles são definidos no <code>docker-compose.yml</code>.</dd>
+          <dt>Situação</dt>
+          <dd><span class="situacao ok">Saudável / Rodando</span> está tudo certo. <span class="situacao alerta">Iniciando</span> ainda está ligando. <span class="situacao erro">Reiniciando</span> o programa dentro do container termina com erro e o Docker o liga de novo, em ciclo: abra os <strong>Logs</strong> para ver o motivo. <span class="situacao neutro">Parado</span> foi desligado.</dd>
+          <dt>"Saudável" (healthcheck)</dt>
+          <dd>Alguns containers têm um teste automático (ex.: o backend responde em <code>/health</code>). Se o teste falha, o Docker marca como "com problema".</dd>
+          <dt>Portas</dt>
+          <dd><code>127.0.0.1:5151-&gt;5432/tcp</code> significa: a porta 5151 do <em>seu computador</em> leva à porta 5432 <em>dentro</em> do container. O prefixo <code>127.0.0.1</code> quer dizer "só este computador consegue acessar".</dd>
+          <dt>CPU e Memória</dt>
+          <dd>Quanto do processador e da RAM o container está usando agora. Um container parado não consome nada.</dd>
+        </dl>
+      </details>
+
+      <div class="barra-acoes">
+        <label><input type="checkbox" id="auto" checked /> Atualizar sozinho a cada 5 s</label>
+        <button class="btn btn-secondary btn-sm" id="btn-atualizar" type="button">Atualizar agora</button>
+        <span class="espaco"></span>
+        <span class="atualizado" id="atualizado"></span>
+      </div>
+
+      <div id="msg" class="mensagem" role="alert"></div>
+
+      <div class="kpis" id="kpis"></div>
+
+      <div id="grupos"></div>
+
+      <div class="card" id="card-logs" hidden>
+        <p class="card-title">Logs de <span id="logs-nome" class="mono"></span></p>
+        <p class="nota">Log é o "diário" do programa: tudo que ele escreve na tela. Quando algo dá errado, a explicação costuma estar nas últimas linhas. A hora vem no começo de cada linha.</p>
+        <div class="barra-acoes">
+          <label for="logs-tail">Linhas:</label>
+          <select id="logs-tail" class="controle">
+            <option value="50">50</option>
+            <option value="100" selected>100</option>
+            <option value="300">300</option>
+            <option value="1000">1000</option>
+          </select>
+          <button class="btn btn-secondary btn-sm" id="logs-recarregar" type="button">Recarregar</button>
+          <button class="btn btn-secondary btn-sm" id="logs-fechar" type="button">Fechar</button>
+        </div>
+        <pre class="log-view" id="logs-texto" tabindex="0" aria-label="Logs do container"></pre>
+      </div>
+
+    </div>
+  </main>
+
+  <footer class="footer">Painel de Aprendizado — roda só neste computador (127.0.0.1)</footer>
+
+  <script src="/js/comum.js"></script>
+  <script src="/js/containers.js"></script>
+</body>
+</html>

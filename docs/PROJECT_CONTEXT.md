@@ -173,6 +173,10 @@ Detalhes e problemas encontrados: `docs/STATUS_LABORATORIO.md` (seção da sess�
 - 2026-10-30: primeiro deploy de ponta a ponta (PRs #42 e #47, deploy `0f3d3c7`) e ciclo repetido com a mudança "V4" da landing (PR #48, deploy `b6238f2`).
 - Deploy passou a **acrescentar um commit** na `producao` em vez de `git push --force` (PR #49, em revisão): `git log --first-parent origin/producao` lista os deploys.
 
+### 27. Painel de Aprendizado e Swagger completo (2026-10-30)
+- `painel/` (porta 3100, fora dos containers): telas de Containers, Kubernetes (mapa de nós/pods, HPA, eventos, logs) e Console SQL com 3 modos (leitura / simular com ROLLBACK / gravar), cada uma com textos explicativos. Guia: `docs/PAINEL_APRENDIZADO.md`.
+- `swagger.json` passou de 9 para 36 caminhos (55 operações): todas as rotas, com passo a passo de login na descrição e servidor relativo (`/`), válido em Compose, K8s dev e produção.
+
 ---
 
 ## Estrutura de arquivos
@@ -432,6 +436,7 @@ pytest tests/ -v
 | `docs/STATUS_LABORATORIO.md` | Onde paramos, o que foi feito, próximos passos (ler primeiro) |
 | `docs/ROTEIRO_CICD_CLAUDE_CODE.md`, `DEVOPS_GUIA.md` | Como a esteira foi construída e a teoria de DevOps |
 | `docs/COLABORACAO_EQUIPE.md`, `EXERCICIO_MULTIPLOS_DEVS.md`, `BACKLOG_KANBAN.md`, `SIMULANDO_2_DEVS.md` | Trabalho em equipe: branches, conflitos, board, vários devs com containers |
+| `docs/FABRICA_DE_SOFTWARE.md` | Passo a passo do card à produção: papéis, tela + CLI, containers, banco, tag, deploy e rollback |
 | `docs/CONTAINERS_K8S_GUIA.md`, `K8S_FLUXO_DEV_CICD.md`, `K8S_TESTE_DE_CARGA.md` | Containers, Kubernetes, fluxo PR → produção com Argo CD, teste de carga |
 | `docs/SETUP_NOVA_MAQUINA.md` | Levar o laboratório para outra máquina |
 

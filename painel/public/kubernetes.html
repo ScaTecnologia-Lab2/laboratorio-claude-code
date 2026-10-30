@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Painel — Kubernetes</title>
+  <link rel="stylesheet" href="/css/styles.css" />
+  <link rel="stylesheet" href="/css/painel.css" />
+</head>
+<body>
+
+  <header class="header">
+    <a href="/" class="header-logo">Lab<span>System</span><small>Painel</small></a>
+    <nav class="nav" aria-label="Menu do painel">
+      <a href="/">Início</a>
+      <a href="/containers.html">Containers</a>
+      <a href="/kubernetes.html" class="active">Kubernetes</a>
+      <a href="/sql.html">Console SQL</a>
+      <a href="http://localhost:3000/api-docs">API Docs</a>
+      <a href="http://localhost:3000/">LabSystem</a>
+    </nav>
+  </header>
+
+  <main class="main">
+    <div class="container container-wide">
+
+      <h1 class="page-title">Kubernetes</h1>
+      <p class="page-sub">O Kubernetes roda os mesmos containers, mas em vários "computadores" ao mesmo tempo, repõe o que cair e cria mais cópias quando há muita demanda.</p>
+
+      <details class="explica" open>
+        <summary>O que você está vendo nesta tela</summary>
+        <p>Os dados vêm de <code>kubectl get</code> e <code>kubectl top</code>, atualizados a cada 5 segundos. Leia de cima para baixo: do <strong>cluster</strong> até cada <strong>pod</strong>.</p>
+        <dl>
+          <dt>Cluster e Nó (Node)</dt>
+          <dd>O cluster é o conjunto de computadores. Cada computador é um <strong>nó</strong>. Neste laboratório são 3 (1 que comanda, o <code>control-plane</code>, e 2 <code>worker</code> que fazem o trabalho), todos simulados como containers pelo k3d.</dd>
+          <dt>Pod</dt>
+          <dd>A menor unidade do Kubernetes: um (ou mais) container(s) rodando juntos. Cada quadradinho do <strong>Mapa do cluster</strong> é um pod. Se um pod morrer, o Kubernetes cria outro no lugar.</dd>
+          <dt>Pronto (Ready) <code>1/1</code></dt>
+          <dd>Quantos containers do pod passaram no teste de prontidão (<em>readiness probe</em>). Um pod só recebe tráfego quando está pronto.</dd>
+          <dt>Reinícios</dt>
+          <dd>Quantas vezes o Kubernetes religou o container do pod. Número que sobe sempre indica um programa que falha.</dd>
+          <dt>Deployment</dt>
+          <dd>A "ordem" que diz <em>quantas cópias</em> (réplicas) de um pod devem existir e qual imagem usar. Ao trocar a imagem, ele faz a atualização aos poucos (<code>RollingUpdate</code>), sem derrubar o sistema.</dd>
+          <dt>StatefulSet</dt>
+          <dd>Parecido com o Deployment, mas para quem guarda dados (o banco): o pod tem nome fixo (<code>postgres-0</code>) e um disco próprio.</dd>
+          <dt>Service</dt>
+          <dd>Um endereço estável para um grupo de pods (os pods mudam de IP o tempo todo). <code>ClusterIP</code> só é acessível dentro do cluster; <code>LoadBalancer</code> abre uma porta para fora e <strong>distribui</strong> as visitas entre os pods.</dd>
+          <dt>HPA (autoescala)</dt>
+          <dd>Observa o uso de CPU e liga mais pods quando passa da meta (e desliga quando a carga baixa), sempre entre o mínimo e o máximo. Para vê-lo agir: <code>sh scripts/k8s/teste-carga.sh dev 60 4</code>.</dd>
+          <dt>Namespace</dt>
+          <dd>Uma "pasta" que separa ambientes dentro do mesmo cluster: <code>labsystem-dev</code> (testes, porta 8081) e <code>labsystem</code> (produção, porta 8080, entregue pelo Argo CD).</dd>
+        </dl>
+      </details>
+
+      <div class="barra-acoes">
+        <label for="ns">Ambiente (namespace):</label>
+        <select id="ns" class="controle">
+          <option value="labsystem-dev">labsystem-dev — desenvolvimento (porta 8081)</option>
+          <option value="labsystem">labsystem — produção via Argo CD (porta 8080)</option>
+        </select>
+        <label><input type="checkbox" id="auto" checked /> Atualizar sozinho a cada 5 s</label>
+        <button class="btn btn-secondary btn-sm" id="btn-atualizar" type="button">Atualizar agora</button>
+        <span class="espaco"></span>
+        <span class="atualizado" id="atualizado"></span>
+      </div>
+
+      <div id="msg" class="mensagem" role="alert"></div>
+
+      <div class="kpis" id="kpis"></div>
+
+      <div class="card">
+        <p class="card-title">Mapa do cluster — nós e pods</p>
+        <p class="nota">Cada caixa é um nó (um computador do cluster). Dentro dela, cada quadrado é um pod. <span class="situacao ok">Verde</span> pronto, <span class="situacao alerta">amarelo</span> ligando/saindo, <span class="situacao erro">vermelho</span> com falha. Clique num pod para ver os logs.</p>
+        <div class="mapa-nos" id="mapa"></div>
+      </div>
+
+      <div class="card" id="card-logs" hidden>
+        <p class="card-title">Logs do pod <span id="logs-nome" class="mono"></span></p>
+        <p class="nota">O que o programa dentro do pod escreveu (as linhas mais recentes ficam embaixo).</p>
+        <div class="barra-acoes">
+          <button class="btn btn-secondary btn-sm" id="logs-recarregar" type="button">Recarregar</button>
+          <button class="btn btn-secondary btn-sm" id="logs-fechar" type="button">Fechar</button>
+        </div>
+        <pre class="log-view" id="logs-texto" tabindex="0" aria-label="Logs do pod"></pre>
+      </div>
+
+      <div class="card">
+        <p class="card-title">Pods</p>
+        <div class="table-wrapper"><table>
+          <thead><tr>
+            <th title="Nome gerado: nome-do-deployment + código aleatório">Pod</th>
+            <th title="Estado: Running = rodando; Pending = esperando um nó; CrashLoopBackOff = falha e reinicia sem parar">Situação</th>
+            <th title="Containers prontos / total de containers do pod">Pronto</th>
+            <th title="Quantas vezes o container foi religado">Reinícios</th>
+            <th title="Em qual computador (nó) o pod está">Nó</th>
+            <th title="Endereço interno do pod, válido só dentro do cluster">IP</th>
+            <th title="Uso de processador (m = milésimos de CPU)">CPU</th>
+            <th title="Memória usada">Memória</th>
+            <th title="Há quanto tempo o pod foi criado">Idade</th>
+            <th>Ações</th>
+          </tr></thead>
+          <tbody id="tb-pods"></tbody>
+        </table></div>
+      </div>
+
+      <div class="card">
+        <p class="card-title">Deployments e StatefulSets — quantas cópias existem</p>
+        <p class="nota">"Prontas / Desejadas": o Kubernetes compara o que você pediu com o que existe e corrige a diferença sozinho.</p>
+        <div class="table-wrapper"><table>
+          <thead><tr>
+            <th title="Nome do grupo de réplicas">Nome</th>
+            <th title="Prontas / desejadas">Réplicas</th>
+            <th title="Réplicas já na versão mais nova durante uma atualização">Atualizadas</th>
+            <th title="Imagem do container (a versão do programa)">Imagem</th>
+            <th title="Como as trocas de versão acontecem">Estratégia</th>
+            <th>Idade</th>
+          </tr></thead>
+          <tbody id="tb-deploys"></tbody>
+        </table></div>
+      </div>
+
+      <div class="card">
+        <p class="card-title">Services — como chegar até os pods</p>
+        <div class="table-wrapper"><table>
+          <thead><tr>
+            <th>Nome</th>
+            <th title="ClusterIP = só dentro do cluster; LoadBalancer = aberto para fora e balanceado">Tipo</th>
+            <th title="IP fixo do Service dentro do cluster">IP interno</th>
+            <th title="porta do Service → porta do container">Portas</th>
+            <th title="Endereços de fora do cluster (só LoadBalancer)">Externo</th>
+          </tr></thead>
+          <tbody id="tb-servicos"></tbody>
+        </table></div>
+      </div>
+
+      <div class="card">
+        <p class="card-title">HPA — autoescala</p>
+        <p class="nota">O HPA mede a CPU média dos pods. Se passar da <strong>meta</strong>, cria réplicas (até o <strong>máximo</strong>); se sobrar folga, remove (até o <strong>mínimo</strong>).</p>
+        <div class="table-wrapper"><table>
+          <thead><tr>
+            <th>Escala o quê</th>
+            <th title="Menor e maior número de réplicas permitidos">Mín – Máx</th>
+            <th title="Réplicas existindo agora → quantas o HPA quer">Réplicas</th>
+            <th title="CPU média atual comparada com a meta">CPU atual / meta</th>
+          </tr></thead>
+          <tbody id="tb-hpa"></tbody>
+        </table></div>
+      </div>
+
+      <div class="card">
+        <p class="card-title">Eventos recentes — o diário do cluster</p>
+        <p class="nota">O que o Kubernetes decidiu e fez: agendar pod, baixar imagem, falha de teste de saúde, escala do HPA… É o primeiro lugar para olhar quando algo não funciona. <em>Warning</em> (aviso) não é necessariamente grave.</p>
+        <div class="table-wrapper"><table>
+          <thead><tr>
+            <th>Tipo</th><th>Motivo</th><th>Objeto</th><th>Mensagem</th>
+            <th title="Quantas vezes o mesmo evento se repetiu">Vezes</th><th>Há</th>
+          </tr></thead>
+          <tbody id="tb-eventos"></tbody>
+        </table></div>
+      </div>
+
+    </div>
+  </main>
+
+  <footer class="footer">Painel de Aprendizado — roda só neste computador (127.0.0.1)</footer>
+
+  <script src="/js/comum.js"></script>
+  <script src="/js/kubernetes.js"></script>
+</body>
+</html>

@@ -2,373 +2,2821 @@
   "openapi": "3.0.0",
   "info": {
     "title": "LabSystem API",
-    "version": "2.0.0",
-    "description": "API REST do LabSystem — Usuários, Clientes e Fornecedores com autenticação por sessão.\n\n> **Fornecedores** são servidos via proxy Node.js → Python Flask (porta 3001). O Node.js valida a sessão antes de repassar a requisição."
+    "version": "3.0.0",
+    "description": "API REST do LabSystem. **Aqui você pode testar todas as rotas direto no navegador.**\n\n### Como testar (3 passos)\n1. Abra **Auth → `POST /login`**, clique em **Try it out** e **Execute**. O exemplo já traz o usuário de desenvolvimento (`Alexaugusto2@gmail.com` / `admin123`). Em um banco novo (Docker/Kubernetes) use `admin@labsystem.com` / `admin123`.\n2. A resposta `200` grava o cookie de sessão `sessao_id` no navegador (ele é `HttpOnly`, você não o vê). A partir daí, **todas as outras rotas já enviam o cookie sozinhas**.\n3. Abra qualquer rota (ex.: `GET /clientes`), **Try it out** → **Execute**. Veja o código HTTP, o corpo e os cabeçalhos da resposta.\n\n### O que significam os códigos\n`200/201` deu certo · `400` dados inválidos · `401` falta login · `403` seu perfil não tem permissão (rotas de **Admin**) · `404` não encontrado · `409` conflito (ex.: sem estoque) · `502/503` serviço de trás fora do ar.\n\n### Como a API é organizada\n- **Usuários, Clientes, Produtos, Estoque** ficam no **PostgreSQL**.\n- **Fornecedores** são servidos por um serviço **Python/Flask**; o Node valida a sessão e repassa o pedido (proxy).\n- **Carrinho, reservas de estoque e cache** usam o **Redis** (simulado em memória).\n- **Avaliações e Eventos** usam o **MongoDB** (simulado em memória).\n\n> Os endereços são relativos a este servidor, então a página funciona igual no Docker Compose (`:3000`), no Kubernetes de desenvolvimento (`:8081`) e na produção (`:8080`). Para ver containers, pods e o banco, use o **Painel de Aprendizado** (`node painel/servidor.js` → `http://localhost:3100`)."
   },
-  "servers": [{ "url": "http://localhost:3000" }],
+  "servers": [
+    {
+      "url": "/",
+      "description": "Este servidor (o mesmo endereço desta página)"
+    }
+  ],
   "paths": {
-
     "/login": {
       "post": {
-        "tags": ["Auth"],
+        "tags": [
+          "Auth"
+        ],
         "summary": "Autenticar usuário",
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/LoginInput" }
+              "schema": {
+                "$ref": "#/components/schemas/LoginInput"
+              }
             }
           }
         },
         "responses": {
-          "200": { "description": "Login realizado — cookie sessao_id definido", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/UsuarioSessao" } } } },
-          "400": { "description": "E-mail ou senha não informados" },
-          "401": { "description": "Credenciais inválidas" }
+          "200": {
+            "description": "Login realizado — cookie sessao_id definido",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UsuarioSessao"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "E-mail ou senha não informados"
+          },
+          "401": {
+            "description": "Credenciais inválidas"
+          }
         }
       }
     },
-
     "/logout": {
       "post": {
-        "tags": ["Auth"],
+        "tags": [
+          "Auth"
+        ],
         "summary": "Encerrar sessão",
         "responses": {
-          "200": { "description": "Sessão encerrada" }
+          "200": {
+            "description": "Sessão encerrada"
+          }
         }
       }
     },
-
     "/me": {
       "get": {
-        "tags": ["Auth"],
+        "tags": [
+          "Auth"
+        ],
         "summary": "Retornar usuário da sessão atual",
         "responses": {
-          "200": { "description": "Usuário autenticado", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/UsuarioSessao" } } } },
-          "401": { "description": "Não autenticado" }
+          "200": {
+            "description": "Usuário autenticado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UsuarioSessao"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Não autenticado"
+          }
         }
       }
     },
-
     "/usuarios": {
       "get": {
-        "tags": ["Usuários"],
+        "tags": [
+          "Usuários"
+        ],
         "summary": "Listar todos os usuários",
         "description": "Requer sessão com role **Admin**.",
         "responses": {
-          "200": { "description": "Lista de usuários", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Usuario" } } } } },
-          "401": { "description": "Não autenticado" },
-          "403": { "description": "Acesso restrito a administradores" }
+          "200": {
+            "description": "Lista de usuários",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Usuario"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Não autenticado"
+          },
+          "403": {
+            "description": "Acesso restrito a administradores"
+          }
         }
       },
       "post": {
-        "tags": ["Usuários"],
+        "tags": [
+          "Usuários"
+        ],
         "summary": "Criar usuário",
         "description": "Requer sessão com role **Admin**.",
         "requestBody": {
           "required": true,
-          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/UsuarioInput" } } }
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UsuarioInput"
+              }
+            }
+          }
         },
         "responses": {
-          "201": { "description": "Usuário criado", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Usuario" } } } },
-          "400": { "description": "Campos obrigatórios ausentes" },
-          "401": { "description": "Não autenticado" },
-          "403": { "description": "Acesso restrito a administradores" }
+          "201": {
+            "description": "Usuário criado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Usuario"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Campos obrigatórios ausentes"
+          },
+          "401": {
+            "description": "Não autenticado"
+          },
+          "403": {
+            "description": "Acesso restrito a administradores"
+          }
         }
       }
     },
-
     "/usuarios/{id}": {
       "get": {
-        "tags": ["Usuários"],
+        "tags": [
+          "Usuários"
+        ],
         "summary": "Buscar usuário por ID",
         "description": "Requer sessão com role **Admin**.",
-        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
         "responses": {
-          "200": { "description": "Usuário encontrado", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Usuario" } } } },
-          "401": { "description": "Não autenticado" },
-          "403": { "description": "Acesso restrito" },
-          "404": { "description": "Usuário não encontrado" }
+          "200": {
+            "description": "Usuário encontrado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Usuario"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Não autenticado"
+          },
+          "403": {
+            "description": "Acesso restrito"
+          },
+          "404": {
+            "description": "Usuário não encontrado"
+          }
         }
       },
       "put": {
-        "tags": ["Usuários"],
+        "tags": [
+          "Usuários"
+        ],
         "summary": "Atualizar usuário",
         "description": "Requer sessão com role **Admin**. Deixar `senha` em branco para não alterar.",
-        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
-          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/UsuarioInput" } } }
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UsuarioInput"
+              }
+            }
+          }
         },
         "responses": {
-          "200": { "description": "Usuário atualizado", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Usuario" } } } },
-          "401": { "description": "Não autenticado" },
-          "403": { "description": "Acesso restrito" },
-          "404": { "description": "Usuário não encontrado" }
+          "200": {
+            "description": "Usuário atualizado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Usuario"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Não autenticado"
+          },
+          "403": {
+            "description": "Acesso restrito"
+          },
+          "404": {
+            "description": "Usuário não encontrado"
+          }
         }
       },
       "delete": {
-        "tags": ["Usuários"],
+        "tags": [
+          "Usuários"
+        ],
         "summary": "Deletar usuário",
         "description": "Requer sessão com role **Admin**. Usuário id=1 não pode ser removido.",
-        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
         "responses": {
-          "200": { "description": "Usuário removido" },
-          "400": { "description": "Não é possível remover o administrador principal" },
-          "401": { "description": "Não autenticado" },
-          "403": { "description": "Acesso restrito" },
-          "404": { "description": "Usuário não encontrado" }
+          "200": {
+            "description": "Usuário removido"
+          },
+          "400": {
+            "description": "Não é possível remover o administrador principal"
+          },
+          "401": {
+            "description": "Não autenticado"
+          },
+          "403": {
+            "description": "Acesso restrito"
+          },
+          "404": {
+            "description": "Usuário não encontrado"
+          }
         }
       }
     },
-
     "/fornecedores": {
       "get": {
-        "tags": ["Fornecedores"],
+        "tags": [
+          "Fornecedores"
+        ],
         "summary": "Listar todos os fornecedores",
         "description": "Requer sessão autenticada. Proxiado para a API Python na porta 3001.",
         "responses": {
           "200": {
             "description": "Lista de fornecedores",
-            "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Fornecedor" } } } }
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Fornecedor"
+                  }
+                }
+              }
+            }
           },
-          "401": { "description": "Não autenticado" },
-          "502": { "description": "Serviço Python indisponível" }
+          "401": {
+            "description": "Não autenticado"
+          },
+          "502": {
+            "description": "Serviço Python indisponível"
+          }
         }
       },
       "post": {
-        "tags": ["Fornecedores"],
+        "tags": [
+          "Fornecedores"
+        ],
         "summary": "Criar fornecedor",
         "description": "Requer sessão autenticada. Campo `nomeempresa` é obrigatório.",
         "requestBody": {
           "required": true,
-          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/FornecedorInput" } } }
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FornecedorInput"
+              }
+            }
+          }
         },
         "responses": {
           "201": {
             "description": "Fornecedor criado",
-            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Fornecedor" } } }
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fornecedor"
+                }
+              }
+            }
           },
-          "400": { "description": "Nome da empresa é obrigatório" },
-          "401": { "description": "Não autenticado" },
-          "502": { "description": "Serviço Python indisponível" }
+          "400": {
+            "description": "Nome da empresa é obrigatório"
+          },
+          "401": {
+            "description": "Não autenticado"
+          },
+          "502": {
+            "description": "Serviço Python indisponível"
+          }
         }
       }
     },
-
     "/fornecedores/{id}": {
       "get": {
-        "tags": ["Fornecedores"],
+        "tags": [
+          "Fornecedores"
+        ],
         "summary": "Buscar fornecedor por ID",
         "description": "Requer sessão autenticada.",
-        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" }, "example": 1 }],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "example": 1
+          }
+        ],
         "responses": {
           "200": {
             "description": "Fornecedor encontrado",
-            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Fornecedor" } } }
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fornecedor"
+                }
+              }
+            }
           },
-          "401": { "description": "Não autenticado" },
-          "404": { "description": "Fornecedor não encontrado" }
+          "401": {
+            "description": "Não autenticado"
+          },
+          "404": {
+            "description": "Fornecedor não encontrado"
+          }
         }
       },
       "put": {
-        "tags": ["Fornecedores"],
+        "tags": [
+          "Fornecedores"
+        ],
         "summary": "Atualizar fornecedor",
         "description": "Requer sessão autenticada. Envie apenas os campos a alterar — os demais permanecem inalterados.",
-        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" }, "example": 1 }],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "example": 1
+          }
+        ],
         "requestBody": {
           "required": true,
-          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/FornecedorInput" } } }
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FornecedorInput"
+              }
+            }
+          }
         },
         "responses": {
           "200": {
             "description": "Fornecedor atualizado",
-            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Fornecedor" } } }
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fornecedor"
+                }
+              }
+            }
           },
-          "401": { "description": "Não autenticado" },
-          "404": { "description": "Fornecedor não encontrado" }
+          "401": {
+            "description": "Não autenticado"
+          },
+          "404": {
+            "description": "Fornecedor não encontrado"
+          }
         }
       },
       "delete": {
-        "tags": ["Fornecedores"],
+        "tags": [
+          "Fornecedores"
+        ],
         "summary": "Deletar fornecedor",
         "description": "Requer sessão autenticada.",
-        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" }, "example": 1 }],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "example": 1
+          }
+        ],
         "responses": {
-          "200": { "description": "Fornecedor removido" },
-          "401": { "description": "Não autenticado" },
-          "404": { "description": "Fornecedor não encontrado" }
+          "200": {
+            "description": "Fornecedor removido"
+          },
+          "401": {
+            "description": "Não autenticado"
+          },
+          "404": {
+            "description": "Fornecedor não encontrado"
+          }
         }
       }
     },
-
     "/clientes": {
       "get": {
-        "tags": ["Clientes"],
+        "tags": [
+          "Clientes"
+        ],
         "summary": "Listar todos os clientes",
         "description": "Requer sessão autenticada.",
         "responses": {
-          "200": { "description": "Lista de clientes", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Cliente" } } } } },
-          "401": { "description": "Não autenticado" }
+          "200": {
+            "description": "Lista de clientes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Cliente"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Não autenticado"
+          }
         }
       },
       "post": {
-        "tags": ["Clientes"],
+        "tags": [
+          "Clientes"
+        ],
         "summary": "Criar cliente",
         "description": "Requer sessão autenticada.",
         "requestBody": {
           "required": true,
-          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ClienteInput" } } }
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClienteInput"
+              }
+            }
+          }
         },
         "responses": {
-          "201": { "description": "Cliente criado", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Cliente" } } } },
-          "400": { "description": "Nome é obrigatório" },
-          "401": { "description": "Não autenticado" }
+          "201": {
+            "description": "Cliente criado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Cliente"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Nome é obrigatório"
+          },
+          "401": {
+            "description": "Não autenticado"
+          }
         }
       }
     },
-
     "/clientes/{id}": {
       "get": {
-        "tags": ["Clientes"],
+        "tags": [
+          "Clientes"
+        ],
         "summary": "Buscar cliente por ID",
         "description": "Requer sessão autenticada.",
-        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
         "responses": {
-          "200": { "description": "Cliente encontrado", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Cliente" } } } },
-          "401": { "description": "Não autenticado" },
-          "404": { "description": "Cliente não encontrado" }
+          "200": {
+            "description": "Cliente encontrado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Cliente"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Não autenticado"
+          },
+          "404": {
+            "description": "Cliente não encontrado"
+          }
         }
       },
       "put": {
-        "tags": ["Clientes"],
+        "tags": [
+          "Clientes"
+        ],
         "summary": "Atualizar cliente",
         "description": "Requer sessão autenticada.",
-        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
-          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ClienteInput" } } }
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClienteInput"
+              }
+            }
+          }
         },
         "responses": {
-          "200": { "description": "Cliente atualizado", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Cliente" } } } },
-          "401": { "description": "Não autenticado" },
-          "404": { "description": "Cliente não encontrado" }
+          "200": {
+            "description": "Cliente atualizado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Cliente"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Não autenticado"
+          },
+          "404": {
+            "description": "Cliente não encontrado"
+          }
         }
       },
       "delete": {
-        "tags": ["Clientes"],
+        "tags": [
+          "Clientes"
+        ],
         "summary": "Deletar cliente",
         "description": "Requer sessão autenticada.",
-        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
         "responses": {
-          "200": { "description": "Cliente removido" },
-          "401": { "description": "Não autenticado" },
-          "404": { "description": "Cliente não encontrado" }
+          "200": {
+            "description": "Cliente removido"
+          },
+          "401": {
+            "description": "Não autenticado"
+          },
+          "404": {
+            "description": "Cliente não encontrado"
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "tags": [
+          "Saúde"
+        ],
+        "summary": "O processo está vivo?",
+        "description": "Sem login. Usada pelo healthcheck do Docker e pela *liveness probe* do Kubernetes. Não consulta o banco.",
+        "responses": {
+          "200": {
+            "description": "Vivo",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "example": {
+                  "status": "ok"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pronto": {
+      "get": {
+        "tags": [
+          "Saúde"
+        ],
+        "summary": "Está pronto para atender (o banco responde)?",
+        "description": "Sem login. Usada pela *readiness probe* do Kubernetes: um pod só recebe tráfego se esta rota responder 200.",
+        "responses": {
+          "200": {
+            "description": "Pronto",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "example": {
+                  "status": "pronto"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Sem acesso ao banco"
+          }
+        }
+      }
+    },
+    "/redis-status": {
+      "get": {
+        "tags": [
+          "Saúde"
+        ],
+        "summary": "Estado do Redis (adaptador em memória)",
+        "description": "Requer login.",
+        "responses": {
+          "200": {
+            "description": "Redis respondeu",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string"
+                    },
+                    "total_chaves": {
+                      "type": "integer"
+                    }
+                  }
+                },
+                "example": {
+                  "status": "ok",
+                  "total_chaves": 3
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Não autenticado — faça POST /login primeiro"
+          },
+          "503": {
+            "description": "Redis indisponível"
+          }
+        }
+      }
+    },
+    "/categorias": {
+      "get": {
+        "tags": [
+          "Produtos"
+        ],
+        "summary": "Listar categorias",
+        "description": "Sem login. Use o `id` como `categoria_id` ao criar um produto.",
+        "responses": {
+          "200": {
+            "description": "Categorias",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Categoria"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/produtos": {
+      "get": {
+        "tags": [
+          "Produtos"
+        ],
+        "summary": "Listar produtos",
+        "description": "Sem login. A **primeira** chamada vem do banco (`X-Cache: MISS`, `origem: \"banco\"`); as seguintes, durante 5 minutos, vêm do Redis (`X-Cache: HIT`, `origem: \"redis\"`). Execute duas vezes e compare o cabeçalho.",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Quantos itens por página (omita para trazer todos)",
+            "schema": {
+              "type": "integer"
+            },
+            "required": false,
+            "example": 10
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "description": "Quantos itens pular (paginação)",
+            "schema": {
+              "type": "integer"
+            },
+            "required": false,
+            "example": 0
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Página de produtos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListaProdutos"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Produtos"
+        ],
+        "summary": "Criar produto (Admin)",
+        "description": "Cria o produto e a linha de estoque na mesma transação e invalida o cache da lista.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProdutoInput"
+              },
+              "example": {
+                "nome": "Teclado Mecânico",
+                "descricao": "Switch azul",
+                "preco": 349.9,
+                "categoria_id": 1,
+                "quantidade": 10
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Criado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Produto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Nome ou preço ausentes"
+          },
+          "401": {
+            "description": "Não autenticado — faça POST /login primeiro"
+          },
+          "403": {
+            "description": "Acesso restrito a administradores"
+          }
+        }
+      }
+    },
+    "/produtos/cache": {
+      "delete": {
+        "tags": [
+          "Produtos"
+        ],
+        "summary": "Limpar o cache de produtos (Admin)",
+        "description": "Apaga as listas e produtos guardados no Redis. A próxima leitura volta a vir do banco (`X-Cache: MISS`).",
+        "responses": {
+          "200": {
+            "description": "Cache invalidado"
+          },
+          "401": {
+            "description": "Não autenticado — faça POST /login primeiro"
+          },
+          "403": {
+            "description": "Acesso restrito a administradores"
+          }
+        }
+      }
+    },
+    "/produtos/{id}": {
+      "get": {
+        "tags": [
+          "Produtos"
+        ],
+        "summary": "Buscar produto por ID",
+        "description": "Sem login. Se você estiver logado, registra o evento `PRODUTO_VISUALIZADO` no MongoDB (veja em Eventos).",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "ID do produto",
+            "schema": {
+              "type": "integer"
+            },
+            "required": true,
+            "example": 1
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Produto (dentro de `dados`)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProdutoDetalhe"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Produto não encontrado"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Produtos"
+        ],
+        "summary": "Atualizar produto (Admin)",
+        "description": "Envie só os campos que quer mudar.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "ID do produto",
+            "schema": {
+              "type": "integer"
+            },
+            "required": true,
+            "example": 1
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProdutoAtualizacao"
+              },
+              "example": {
+                "preco": 299.9
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Atualizado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Produto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Não autenticado — faça POST /login primeiro"
+          },
+          "403": {
+            "description": "Acesso restrito a administradores"
+          },
+          "404": {
+            "description": "Produto não encontrado"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Produtos"
+        ],
+        "summary": "Remover produto (Admin)",
+        "description": "Remove também a linha de estoque (cascata).",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "ID do produto",
+            "schema": {
+              "type": "integer"
+            },
+            "required": true,
+            "example": 1
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Removido"
+          },
+          "401": {
+            "description": "Não autenticado — faça POST /login primeiro"
+          },
+          "403": {
+            "description": "Acesso restrito a administradores"
+          },
+          "404": {
+            "description": "Produto não encontrado"
+          }
+        }
+      }
+    },
+    "/estoque": {
+      "get": {
+        "tags": [
+          "Estoque"
+        ],
+        "summary": "Listar estoque de todos os produtos",
+        "description": "Requer login.",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Quantos itens por página (omita para trazer todos)",
+            "schema": {
+              "type": "integer"
+            },
+            "required": false,
+            "example": 10
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "description": "Quantos itens pular (paginação)",
+            "schema": {
+              "type": "integer"
+            },
+            "required": false,
+            "example": 0
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Estoque",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "dados": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    },
+                    "total": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Não autenticado — faça POST /login primeiro"
+          }
+        }
+      }
+    },
+    "/estoque/{produtoId}": {
+      "get": {
+        "tags": [
+          "Estoque"
+        ],
+        "summary": "Ver o estoque de um produto",
+        "description": "`disponivel` = `quantidade` − `reservado`. A reserva vive no Redis e expira sozinha (veja `reserva_ttl`, em segundos).",
+        "parameters": [
+          {
+            "name": "produtoId",
+            "in": "path",
+            "description": "ID do produto",
+            "schema": {
+              "type": "integer"
+            },
+            "required": true,
+            "example": 1
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Estoque do produto",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Estoque"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Não autenticado — faça POST /login primeiro"
+          },
+          "404": {
+            "description": "Estoque não encontrado"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Estoque"
+        ],
+        "summary": "Definir a quantidade em estoque (Admin)",
+        "parameters": [
+          {
+            "name": "produtoId",
+            "in": "path",
+            "description": "ID do produto",
+            "schema": {
+              "type": "integer"
+            },
+            "required": true,
+            "example": 1
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "quantidade"
+                ],
+                "properties": {
+                  "quantidade": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                }
+              },
+              "example": {
+                "quantidade": 25
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Atualizado"
+          },
+          "400": {
+            "description": "Quantidade inválida"
+          },
+          "401": {
+            "description": "Não autenticado — faça POST /login primeiro"
+          },
+          "403": {
+            "description": "Acesso restrito a administradores"
+          }
+        }
+      }
+    },
+    "/estoque/{produtoId}/reservar": {
+      "post": {
+        "tags": [
+          "Estoque"
+        ],
+        "summary": "Reservar unidades temporariamente",
+        "description": "Segura as unidades por alguns minutos (Redis) sem tirá-las do estoque. Se não houver disponível, responde `409`.",
+        "parameters": [
+          {
+            "name": "produtoId",
+            "in": "path",
+            "description": "ID do produto",
+            "schema": {
+              "type": "integer"
+            },
+            "required": true,
+            "example": 1
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "quantidade"
+                ],
+                "properties": {
+                  "quantidade": {
+                    "type": "integer",
+                    "minimum": 1
+                  }
+                }
+              },
+              "example": {
+                "quantidade": 2
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Reservado"
+          },
+          "400": {
+            "description": "Quantidade deve ser maior que zero"
+          },
+          "401": {
+            "description": "Não autenticado — faça POST /login primeiro"
+          },
+          "409": {
+            "description": "Estoque insuficiente"
+          }
+        }
+      }
+    },
+    "/estoque/{produtoId}/reserva": {
+      "delete": {
+        "tags": [
+          "Estoque"
+        ],
+        "summary": "Liberar a reserva",
+        "description": "Com `quantidade` libera só essa parte; sem ela, apaga a reserva inteira.",
+        "parameters": [
+          {
+            "name": "produtoId",
+            "in": "path",
+            "description": "ID do produto",
+            "schema": {
+              "type": "integer"
+            },
+            "required": true,
+            "example": 1
+          },
+          {
+            "name": "quantidade",
+            "in": "query",
+            "description": "Quantas unidades liberar (opcional)",
+            "schema": {
+              "type": "integer"
+            },
+            "required": false,
+            "example": 1
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Reserva liberada"
+          },
+          "401": {
+            "description": "Não autenticado — faça POST /login primeiro"
+          }
+        }
+      }
+    },
+    "/estoque/{produtoId}/confirmar": {
+      "post": {
+        "tags": [
+          "Estoque"
+        ],
+        "summary": "Confirmar a venda e baixar o estoque (Admin)",
+        "description": "Debita a quantidade do estoque e registra o evento `PAGAMENTO_APROVADO`.",
+        "parameters": [
+          {
+            "name": "produtoId",
+            "in": "path",
+            "description": "ID do produto",
+            "schema": {
+              "type": "integer"
+            },
+            "required": true,
+            "example": 1
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "quantidade"
+                ],
+                "properties": {
+                  "quantidade": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "pedidoId": {
+                    "type": "string"
+                  },
+                  "valor": {
+                    "type": "number"
+                  }
+                }
+              },
+              "example": {
+                "quantidade": 2,
+                "pedidoId": "PED-1",
+                "valor": 699.8
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Venda confirmada"
+          },
+          "400": {
+            "description": "Quantidade inválida"
+          },
+          "401": {
+            "description": "Não autenticado — faça POST /login primeiro"
+          },
+          "403": {
+            "description": "Acesso restrito a administradores"
+          }
+        }
+      }
+    },
+    "/carrinho": {
+      "get": {
+        "tags": [
+          "Carrinho"
+        ],
+        "summary": "Ver o meu carrinho",
+        "description": "O carrinho é do usuário logado e fica no Redis (expira se ficar parado).",
+        "responses": {
+          "200": {
+            "description": "Carrinho",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Carrinho"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Não autenticado — faça POST /login primeiro"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Carrinho"
+        ],
+        "summary": "Esvaziar o carrinho",
+        "responses": {
+          "200": {
+            "description": "Carrinho limpo"
+          },
+          "401": {
+            "description": "Não autenticado — faça POST /login primeiro"
+          }
+        }
+      }
+    },
+    "/carrinho/itens": {
+      "post": {
+        "tags": [
+          "Carrinho"
+        ],
+        "summary": "Adicionar um produto ao carrinho",
+        "description": "Registra o evento `ADICIONADO_CARRINHO`.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "produtoId"
+                ],
+                "properties": {
+                  "produtoId": {
+                    "type": "integer"
+                  },
+                  "quantidade": {
+                    "type": "integer",
+                    "default": 1
+                  }
+                }
+              },
+              "example": {
+                "produtoId": 1,
+                "quantidade": 2
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Carrinho atualizado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Carrinho"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "produtoId é obrigatório"
+          },
+          "401": {
+            "description": "Não autenticado — faça POST /login primeiro"
+          }
+        }
+      }
+    },
+    "/carrinho/itens/{produtoId}": {
+      "put": {
+        "tags": [
+          "Carrinho"
+        ],
+        "summary": "Mudar a quantidade de um item",
+        "description": "Quantidade 0 (ou menor) remove o item.",
+        "parameters": [
+          {
+            "name": "produtoId",
+            "in": "path",
+            "description": "ID do produto",
+            "schema": {
+              "type": "integer"
+            },
+            "required": true,
+            "example": 1
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "quantidade"
+                ],
+                "properties": {
+                  "quantidade": {
+                    "type": "integer"
+                  }
+                }
+              },
+              "example": {
+                "quantidade": 3
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Carrinho atualizado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Carrinho"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Não autenticado — faça POST /login primeiro"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Carrinho"
+        ],
+        "summary": "Remover um item do carrinho",
+        "parameters": [
+          {
+            "name": "produtoId",
+            "in": "path",
+            "description": "ID do produto",
+            "schema": {
+              "type": "integer"
+            },
+            "required": true,
+            "example": 1
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Carrinho atualizado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Carrinho"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Não autenticado — faça POST /login primeiro"
+          }
+        }
+      }
+    },
+    "/carrinho/checkout": {
+      "post": {
+        "tags": [
+          "Carrinho"
+        ],
+        "summary": "Finalizar a compra (checkout)",
+        "description": "Reserva o estoque de **todos** os itens; se algum falhar, desfaz as reservas já feitas. Registra os eventos `CHECKOUT_INICIADO` e `PEDIDO_CRIADO` (ou `PAGAMENTO_RECUSADO`). Adicione itens ao carrinho antes de executar.",
+        "responses": {
+          "200": {
+            "description": "Pedido criado, estoque reservado"
+          },
+          "401": {
+            "description": "Não autenticado — faça POST /login primeiro"
+          },
+          "409": {
+            "description": "Carrinho vazio ou estoque insuficiente"
+          }
+        }
+      }
+    },
+    "/avaliacoes": {
+      "get": {
+        "tags": [
+          "Avaliações"
+        ],
+        "summary": "Listar avaliações (com filtros)",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Itens por página (padrão 20)",
+            "schema": {
+              "type": "integer"
+            },
+            "required": false,
+            "example": 20
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "description": "Itens a pular",
+            "schema": {
+              "type": "integer"
+            },
+            "required": false,
+            "example": 0
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "description": "Filtrar por status",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "pendente",
+                "aprovado",
+                "rejeitado"
+              ]
+            },
+            "required": false
+          },
+          {
+            "name": "produtoId",
+            "in": "query",
+            "description": "Só deste produto",
+            "schema": {
+              "type": "integer"
+            },
+            "required": false
+          },
+          {
+            "name": "clienteId",
+            "in": "query",
+            "description": "Só deste cliente",
+            "schema": {
+              "type": "integer"
+            },
+            "required": false
+          },
+          {
+            "name": "nota",
+            "in": "query",
+            "description": "Só esta nota (1 a 5)",
+            "schema": {
+              "type": "integer"
+            },
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Avaliações",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "avaliacoes": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Avaliacao"
+                      }
+                    },
+                    "total": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Não autenticado — faça POST /login primeiro"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Avaliações"
+        ],
+        "summary": "Criar avaliação",
+        "description": "Nasce com status `pendente`. Sem `clienteId`, usa o usuário logado. `pros`, `contras`, `imagens` e `tags` aceitam lista ou texto separado por vírgula.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AvaliacaoInput"
+              },
+              "example": {
+                "produtoId": 1,
+                "nota": 5,
+                "titulo": "Ótimo!",
+                "comentario": "Chegou rápido e funciona bem.",
+                "pros": [
+                  "bateria",
+                  "preço"
+                ],
+                "tags": [
+                  "recomendo"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Criada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Avaliacao"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dados inválidos"
+          },
+          "401": {
+            "description": "Não autenticado — faça POST /login primeiro"
+          }
+        }
+      }
+    },
+    "/avaliacoes/seed": {
+      "post": {
+        "tags": [
+          "Avaliações"
+        ],
+        "summary": "Criar avaliações de exemplo",
+        "description": "Popula o MongoDB com dados de demonstração para você testar as consultas.",
+        "responses": {
+          "200": {
+            "description": "Dados de exemplo criados"
+          },
+          "401": {
+            "description": "Não autenticado — faça POST /login primeiro"
+          }
+        }
+      }
+    },
+    "/avaliacoes/produto/{produtoId}": {
+      "get": {
+        "tags": [
+          "Avaliações"
+        ],
+        "summary": "Avaliações de um produto",
+        "parameters": [
+          {
+            "name": "produtoId",
+            "in": "path",
+            "description": "ID do produto",
+            "schema": {
+              "type": "integer"
+            },
+            "required": true,
+            "example": 1
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "description": "Filtrar por status",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "pendente",
+                "aprovado",
+                "rejeitado"
+              ]
+            },
+            "required": false
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Itens por página",
+            "schema": {
+              "type": "integer"
+            },
+            "required": false,
+            "example": 20
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "description": "Itens a pular",
+            "schema": {
+              "type": "integer"
+            },
+            "required": false,
+            "example": 0
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Avaliações do produto",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "avaliacoes": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Avaliacao"
+                      }
+                    },
+                    "total": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Não autenticado — faça POST /login primeiro"
+          }
+        }
+      }
+    },
+    "/avaliacoes/produto/{produtoId}/media": {
+      "get": {
+        "tags": [
+          "Avaliações"
+        ],
+        "summary": "Nota média de um produto",
+        "description": "Conta só avaliações **aprovadas**. Devolve a média e quantas avaliações há para cada nota.",
+        "parameters": [
+          {
+            "name": "produtoId",
+            "in": "path",
+            "description": "ID do produto",
+            "schema": {
+              "type": "integer"
+            },
+            "required": true,
+            "example": 1
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Média"
+          },
+          "401": {
+            "description": "Não autenticado — faça POST /login primeiro"
+          }
+        }
+      }
+    },
+    "/avaliacoes/cliente/{clienteId}": {
+      "get": {
+        "tags": [
+          "Avaliações"
+        ],
+        "summary": "Avaliações feitas por um cliente",
+        "parameters": [
+          {
+            "name": "clienteId",
+            "in": "path",
+            "description": "ID do cliente",
+            "schema": {
+              "type": "integer"
+            },
+            "required": true,
+            "example": 1
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Avaliações do cliente",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Avaliacao"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Não autenticado — faça POST /login primeiro"
+          }
+        }
+      }
+    },
+    "/avaliacoes/{id}": {
+      "get": {
+        "tags": [
+          "Avaliações"
+        ],
+        "summary": "Buscar avaliação por ID",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "ID da avaliação (ObjectId, o campo `_id`)",
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "example": "6540a1b2c3d4e5f607182930"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Avaliação",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Avaliacao"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Não autenticado — faça POST /login primeiro"
+          },
+          "404": {
+            "description": "Avaliação não encontrada"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Avaliações"
+        ],
+        "summary": "Atualizar avaliação",
+        "description": "Mudar o `status` (aprovar/rejeitar) exige **Admin**.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "ID da avaliação (ObjectId, o campo `_id`)",
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "example": "6540a1b2c3d4e5f607182930"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "titulo": {
+                    "type": "string"
+                  },
+                  "comentario": {
+                    "type": "string"
+                  },
+                  "nota": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 5
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "pendente",
+                      "aprovado",
+                      "rejeitado"
+                    ]
+                  }
+                }
+              },
+              "example": {
+                "status": "aprovado"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Atualizada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Avaliacao"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dados inválidos"
+          },
+          "401": {
+            "description": "Não autenticado — faça POST /login primeiro"
+          },
+          "403": {
+            "description": "Só Admin altera o status"
+          },
+          "404": {
+            "description": "Avaliação não encontrada"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Avaliações"
+        ],
+        "summary": "Excluir avaliação (Admin)",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "ID da avaliação (ObjectId, o campo `_id`)",
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "example": "6540a1b2c3d4e5f607182930"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Excluída"
+          },
+          "401": {
+            "description": "Não autenticado — faça POST /login primeiro"
+          },
+          "403": {
+            "description": "Somente Admin pode excluir avaliações"
+          },
+          "404": {
+            "description": "Avaliação não encontrada"
+          }
+        }
+      }
+    },
+    "/eventos": {
+      "get": {
+        "tags": [
+          "Eventos"
+        ],
+        "summary": "Listar eventos (mais recentes primeiro)",
+        "parameters": [
+          {
+            "name": "tipo",
+            "in": "query",
+            "description": "Filtrar por tipo",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "PRODUTO_VISUALIZADO",
+                "ADICIONADO_CARRINHO",
+                "CHECKOUT_INICIADO",
+                "PEDIDO_CRIADO",
+                "PAGAMENTO_APROVADO",
+                "PAGAMENTO_RECUSADO"
+              ]
+            },
+            "required": false
+          },
+          {
+            "name": "clienteId",
+            "in": "query",
+            "description": "Só deste cliente",
+            "schema": {
+              "type": "integer"
+            },
+            "required": false
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Itens por página (padrão 50)",
+            "schema": {
+              "type": "integer"
+            },
+            "required": false,
+            "example": 50
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "description": "Itens a pular",
+            "schema": {
+              "type": "integer"
+            },
+            "required": false,
+            "example": 0
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Eventos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "eventos": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Evento"
+                      }
+                    },
+                    "total": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Não autenticado — faça POST /login primeiro"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Eventos"
+        ],
+        "summary": "Apagar todos os eventos (Admin)",
+        "description": "Cuidado: apaga a coleção inteira (no adaptador em memória).",
+        "responses": {
+          "200": {
+            "description": "Apagados"
+          },
+          "401": {
+            "description": "Não autenticado — faça POST /login primeiro"
+          },
+          "403": {
+            "description": "Acesso restrito a administradores"
+          }
+        }
+      }
+    },
+    "/eventos/seed": {
+      "post": {
+        "tags": [
+          "Eventos"
+        ],
+        "summary": "Criar eventos de exemplo",
+        "description": "Gera um histórico de compras de demonstração, que alimenta o relatório.",
+        "responses": {
+          "200": {
+            "description": "Eventos de exemplo criados"
+          },
+          "401": {
+            "description": "Não autenticado — faça POST /login primeiro"
+          }
+        }
+      }
+    },
+    "/eventos/cliente/{clienteId}": {
+      "get": {
+        "tags": [
+          "Eventos"
+        ],
+        "summary": "Eventos de um cliente",
+        "parameters": [
+          {
+            "name": "clienteId",
+            "in": "path",
+            "description": "ID do cliente",
+            "schema": {
+              "type": "integer"
+            },
+            "required": true,
+            "example": 1
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Eventos do cliente",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Evento"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Não autenticado — faça POST /login primeiro"
+          }
+        }
+      }
+    },
+    "/eventos/pedido/{pedidoId}": {
+      "get": {
+        "tags": [
+          "Eventos"
+        ],
+        "summary": "Linha do tempo de um pedido",
+        "description": "Do mais antigo para o mais novo. O `pedidoId` vem da resposta do checkout.",
+        "parameters": [
+          {
+            "name": "pedidoId",
+            "in": "path",
+            "description": "Código do pedido",
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "example": "PED-1730000000000"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Eventos do pedido",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Evento"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Não autenticado — faça POST /login primeiro"
+          }
+        }
+      }
+    },
+    "/relatorio/black-friday": {
+      "get": {
+        "tags": [
+          "Relatório"
+        ],
+        "summary": "Relatório de vendas (funil de conversão)",
+        "description": "Calcula em cima dos eventos: funil (visualizou → carrinho → checkout → pedido → pagamento), receita, taxa de conversão, produtos mais vistos e vendas por hora. Execute **Eventos → `POST /eventos/seed`** antes para ter dados.",
+        "responses": {
+          "200": {
+            "description": "Relatório"
+          },
+          "401": {
+            "description": "Não autenticado — faça POST /login primeiro"
+          }
         }
       }
     }
-
   },
   "components": {
     "schemas": {
-
       "LoginInput": {
         "type": "object",
-        "required": ["email", "senha"],
+        "required": [
+          "email",
+          "senha"
+        ],
         "properties": {
-          "email": { "type": "string", "example": "Alexaugusto2@gmail.com" },
-          "senha": { "type": "string", "example": "admin123" }
+          "email": {
+            "type": "string",
+            "example": "Alexaugusto2@gmail.com"
+          },
+          "senha": {
+            "type": "string",
+            "example": "admin123"
+          }
         }
       },
-
       "UsuarioSessao": {
         "type": "object",
         "properties": {
-          "id":   { "type": "integer", "example": 1 },
-          "nome": { "type": "string",  "example": "Alexander" },
-          "role": { "type": "string",  "example": "Admin" }
+          "id": {
+            "type": "integer",
+            "example": 1
+          },
+          "nome": {
+            "type": "string",
+            "example": "Alexander"
+          },
+          "role": {
+            "type": "string",
+            "example": "Admin"
+          }
         }
       },
-
       "Usuario": {
         "type": "object",
         "properties": {
-          "id":    { "type": "integer", "example": 1 },
-          "nome":  { "type": "string",  "example": "Alexander" },
-          "email": { "type": "string",  "example": "Alexaugusto2@gmail.com" },
-          "role":  { "type": "string",  "example": "Admin", "enum": ["Admin", "Atendente", "Visitante"] }
+          "id": {
+            "type": "integer",
+            "example": 1
+          },
+          "nome": {
+            "type": "string",
+            "example": "Alexander"
+          },
+          "email": {
+            "type": "string",
+            "example": "Alexaugusto2@gmail.com"
+          },
+          "role": {
+            "type": "string",
+            "example": "Admin",
+            "enum": [
+              "Admin",
+              "Atendente",
+              "Visitante"
+            ]
+          }
         }
       },
-
       "UsuarioInput": {
         "type": "object",
         "properties": {
-          "nome":  { "type": "string", "example": "Maria Silva" },
-          "email": { "type": "string", "example": "maria@email.com" },
-          "senha": { "type": "string", "example": "senha123" },
-          "role":  { "type": "string", "example": "Atendente", "enum": ["Admin", "Atendente", "Visitante"] }
+          "nome": {
+            "type": "string",
+            "example": "Maria Silva"
+          },
+          "email": {
+            "type": "string",
+            "example": "maria@email.com"
+          },
+          "senha": {
+            "type": "string",
+            "example": "senha123"
+          },
+          "role": {
+            "type": "string",
+            "example": "Atendente",
+            "enum": [
+              "Admin",
+              "Atendente",
+              "Visitante"
+            ]
+          }
         }
       },
-
       "Fornecedor": {
         "type": "object",
         "properties": {
-          "id":           { "type": "integer", "example": 1 },
-          "nomeempresa":  { "type": "string",  "example": "Distribuidora Alfa Ltda" },
-          "nomefantasia": { "type": "string",  "example": "Alfa Distribuidora" },
-          "cnpj":         { "type": "string",  "example": "12.345.678/0001-99" },
-          "endereco":     { "type": "string",  "example": "Av. Industrial, 1200" },
-          "bairro":       { "type": "string",  "example": "Distrito Industrial" },
-          "cidade":       { "type": "string",  "example": "São Paulo" },
-          "estado":       { "type": "string",  "example": "SP" },
-          "email":        { "type": "string",  "example": "contato@alfa.com.br" },
-          "telefone":     { "type": "string",  "example": "(11) 3344-5566" }
+          "id": {
+            "type": "integer",
+            "example": 1
+          },
+          "nomeempresa": {
+            "type": "string",
+            "example": "Distribuidora Alfa Ltda"
+          },
+          "nomefantasia": {
+            "type": "string",
+            "example": "Alfa Distribuidora"
+          },
+          "cnpj": {
+            "type": "string",
+            "example": "12.345.678/0001-99"
+          },
+          "endereco": {
+            "type": "string",
+            "example": "Av. Industrial, 1200"
+          },
+          "bairro": {
+            "type": "string",
+            "example": "Distrito Industrial"
+          },
+          "cidade": {
+            "type": "string",
+            "example": "São Paulo"
+          },
+          "estado": {
+            "type": "string",
+            "example": "SP"
+          },
+          "email": {
+            "type": "string",
+            "example": "contato@alfa.com.br"
+          },
+          "telefone": {
+            "type": "string",
+            "example": "(11) 3344-5566"
+          }
         }
       },
-
       "FornecedorInput": {
         "type": "object",
-        "required": ["nomeempresa"],
+        "required": [
+          "nomeempresa"
+        ],
         "properties": {
-          "nomeempresa":  { "type": "string", "example": "Distribuidora Alfa Ltda" },
-          "nomefantasia": { "type": "string", "example": "Alfa Distribuidora" },
-          "cnpj":         { "type": "string", "example": "12.345.678/0001-99" },
-          "endereco":     { "type": "string", "example": "Av. Industrial, 1200" },
-          "bairro":       { "type": "string", "example": "Distrito Industrial" },
-          "cidade":       { "type": "string", "example": "São Paulo" },
-          "estado":       { "type": "string", "example": "SP" },
-          "email":        { "type": "string", "example": "contato@alfa.com.br" },
-          "telefone":     { "type": "string", "example": "(11) 3344-5566" }
+          "nomeempresa": {
+            "type": "string",
+            "example": "Distribuidora Alfa Ltda"
+          },
+          "nomefantasia": {
+            "type": "string",
+            "example": "Alfa Distribuidora"
+          },
+          "cnpj": {
+            "type": "string",
+            "example": "12.345.678/0001-99"
+          },
+          "endereco": {
+            "type": "string",
+            "example": "Av. Industrial, 1200"
+          },
+          "bairro": {
+            "type": "string",
+            "example": "Distrito Industrial"
+          },
+          "cidade": {
+            "type": "string",
+            "example": "São Paulo"
+          },
+          "estado": {
+            "type": "string",
+            "example": "SP"
+          },
+          "email": {
+            "type": "string",
+            "example": "contato@alfa.com.br"
+          },
+          "telefone": {
+            "type": "string",
+            "example": "(11) 3344-5566"
+          }
         }
       },
-
       "Cliente": {
         "type": "object",
         "properties": {
-          "id":       { "type": "integer", "example": 1 },
-          "nome":     { "type": "string",  "example": "João da Silva" },
-          "endereco": { "type": "string",  "example": "Rua das Flores, 123" },
-          "bairro":   { "type": "string",  "example": "Centro" },
-          "cidade":   { "type": "string",  "example": "São Paulo" },
-          "estado":   { "type": "string",  "example": "SP" },
-          "email":    { "type": "string",  "example": "joao@email.com" },
-          "telefone": { "type": "string",  "example": "(11) 98765-4321" }
+          "id": {
+            "type": "integer",
+            "example": 1
+          },
+          "nome": {
+            "type": "string",
+            "example": "João da Silva"
+          },
+          "endereco": {
+            "type": "string",
+            "example": "Rua das Flores, 123"
+          },
+          "bairro": {
+            "type": "string",
+            "example": "Centro"
+          },
+          "cidade": {
+            "type": "string",
+            "example": "São Paulo"
+          },
+          "estado": {
+            "type": "string",
+            "example": "SP"
+          },
+          "email": {
+            "type": "string",
+            "example": "joao@email.com"
+          },
+          "telefone": {
+            "type": "string",
+            "example": "(11) 98765-4321"
+          }
         }
       },
-
       "ClienteInput": {
         "type": "object",
-        "required": ["nome"],
+        "required": [
+          "nome"
+        ],
         "properties": {
-          "nome":     { "type": "string", "example": "João da Silva" },
-          "endereco": { "type": "string", "example": "Rua das Flores, 123" },
-          "bairro":   { "type": "string", "example": "Centro" },
-          "cidade":   { "type": "string", "example": "São Paulo" },
-          "estado":   { "type": "string", "example": "SP" },
-          "email":    { "type": "string", "example": "joao@email.com" },
-          "telefone": { "type": "string", "example": "(11) 98765-4321" }
+          "nome": {
+            "type": "string",
+            "example": "João da Silva"
+          },
+          "endereco": {
+            "type": "string",
+            "example": "Rua das Flores, 123"
+          },
+          "bairro": {
+            "type": "string",
+            "example": "Centro"
+          },
+          "cidade": {
+            "type": "string",
+            "example": "São Paulo"
+          },
+          "estado": {
+            "type": "string",
+            "example": "SP"
+          },
+          "email": {
+            "type": "string",
+            "example": "joao@email.com"
+          },
+          "telefone": {
+            "type": "string",
+            "example": "(11) 98765-4321"
+          }
+        }
+      },
+      "Categoria": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": 1
+          },
+          "nome": {
+            "type": "string",
+            "example": "Eletrônicos"
+          },
+          "descricao": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "Produto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": 1
+          },
+          "nome": {
+            "type": "string",
+            "example": "Teclado Mecânico"
+          },
+          "descricao": {
+            "type": "string",
+            "nullable": true
+          },
+          "preco": {
+            "type": "string",
+            "description": "NUMERIC do PostgreSQL chega como texto",
+            "example": "349.90"
+          },
+          "categoria_id": {
+            "type": "integer",
+            "nullable": true
+          },
+          "categoria": {
+            "type": "string",
+            "nullable": true,
+            "example": "Eletrônicos"
+          },
+          "ativo": {
+            "type": "boolean",
+            "example": true
+          },
+          "estoque": {
+            "type": "integer",
+            "example": 10
+          }
+        }
+      },
+      "ProdutoInput": {
+        "type": "object",
+        "required": [
+          "nome",
+          "preco"
+        ],
+        "properties": {
+          "nome": {
+            "type": "string"
+          },
+          "descricao": {
+            "type": "string"
+          },
+          "preco": {
+            "type": "number"
+          },
+          "categoria_id": {
+            "type": "integer",
+            "description": "ID de uma categoria (veja GET /categorias)"
+          },
+          "quantidade": {
+            "type": "integer",
+            "description": "Estoque inicial",
+            "default": 0
+          }
+        }
+      },
+      "ProdutoAtualizacao": {
+        "type": "object",
+        "properties": {
+          "nome": {
+            "type": "string"
+          },
+          "descricao": {
+            "type": "string"
+          },
+          "preco": {
+            "type": "number"
+          },
+          "categoria_id": {
+            "type": "integer"
+          },
+          "ativo": {
+            "type": "boolean"
+          }
+        }
+      },
+      "ListaProdutos": {
+        "type": "object",
+        "properties": {
+          "origem": {
+            "type": "string",
+            "enum": [
+              "banco",
+              "redis"
+            ],
+            "description": "De onde veio a resposta"
+          },
+          "ttl": {
+            "type": "integer",
+            "description": "Segundos até o cache expirar"
+          },
+          "dados": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Produto"
+            }
+          },
+          "total": {
+            "type": "integer"
+          }
+        }
+      },
+      "ProdutoDetalhe": {
+        "type": "object",
+        "properties": {
+          "origem": {
+            "type": "string",
+            "enum": [
+              "banco",
+              "redis"
+            ]
+          },
+          "ttl": {
+            "type": "integer",
+            "nullable": true
+          },
+          "dados": {
+            "$ref": "#/components/schemas/Produto"
+          }
+        }
+      },
+      "Estoque": {
+        "type": "object",
+        "properties": {
+          "produto_id": {
+            "type": "integer"
+          },
+          "quantidade": {
+            "type": "integer",
+            "description": "Total físico"
+          },
+          "reservado": {
+            "type": "integer",
+            "description": "Segurado por reservas (Redis)"
+          },
+          "disponivel": {
+            "type": "integer",
+            "description": "quantidade − reservado"
+          },
+          "reserva_ttl": {
+            "type": "integer",
+            "nullable": true,
+            "description": "Segundos até a reserva expirar"
+          }
+        }
+      },
+      "Carrinho": {
+        "type": "object",
+        "properties": {
+          "itens": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "produto_id": {
+                  "type": "integer"
+                },
+                "nome": {
+                  "type": "string"
+                },
+                "preco": {
+                  "type": "number"
+                },
+                "quantidade": {
+                  "type": "integer"
+                },
+                "subtotal": {
+                  "type": "number"
+                }
+              }
+            }
+          },
+          "total": {
+            "type": "number"
+          },
+          "ttl": {
+            "type": "integer",
+            "nullable": true,
+            "description": "Segundos até o carrinho expirar"
+          }
+        }
+      },
+      "Avaliacao": {
+        "type": "object",
+        "properties": {
+          "_id": {
+            "type": "string"
+          },
+          "produtoId": {
+            "type": "integer"
+          },
+          "clienteId": {
+            "type": "integer"
+          },
+          "nota": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 5
+          },
+          "titulo": {
+            "type": "string"
+          },
+          "comentario": {
+            "type": "string"
+          },
+          "pros": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "contras": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "imagens": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pendente",
+              "aprovado",
+              "rejeitado"
+            ]
+          },
+          "dataCriacao": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "dataAtualizacao": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "AvaliacaoInput": {
+        "type": "object",
+        "required": [
+          "produtoId",
+          "nota",
+          "titulo",
+          "comentario"
+        ],
+        "properties": {
+          "produtoId": {
+            "type": "integer"
+          },
+          "clienteId": {
+            "type": "integer",
+            "description": "Opcional: padrão é o usuário logado"
+          },
+          "nota": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 5
+          },
+          "titulo": {
+            "type": "string"
+          },
+          "comentario": {
+            "type": "string"
+          },
+          "pros": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "contras": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "imagens": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "Evento": {
+        "type": "object",
+        "properties": {
+          "_id": {
+            "type": "string"
+          },
+          "tipo": {
+            "type": "string",
+            "enum": [
+              "PRODUTO_VISUALIZADO",
+              "ADICIONADO_CARRINHO",
+              "CHECKOUT_INICIADO",
+              "PEDIDO_CRIADO",
+              "PAGAMENTO_APROVADO",
+              "PAGAMENTO_RECUSADO"
+            ]
+          },
+          "clienteId": {
+            "type": "integer"
+          },
+          "clienteNome": {
+            "type": "string"
+          },
+          "dados": {
+            "type": "object",
+            "description": "Detalhes que variam por tipo"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
         }
       }
-
     }
-  }
+  },
+  "tags": [
+    {
+      "name": "Auth",
+      "description": "Login, logout e quem sou eu. **Comece por aqui.**"
+    },
+    {
+      "name": "Usuários",
+      "description": "CRUD de usuários — somente **Admin**."
+    },
+    {
+      "name": "Clientes",
+      "description": "CRUD de clientes — qualquer usuário logado."
+    },
+    {
+      "name": "Fornecedores",
+      "description": "CRUD de fornecedores — proxy Node → Python/Flask."
+    },
+    {
+      "name": "Produtos",
+      "description": "Catálogo (PostgreSQL) com **cache no Redis**: veja o cabeçalho `X-Cache` (HIT/MISS) na resposta do GET."
+    },
+    {
+      "name": "Estoque",
+      "description": "Quantidade em estoque (PostgreSQL) e **reservas temporárias** (Redis)."
+    },
+    {
+      "name": "Carrinho",
+      "description": "Carrinho do usuário logado (Redis) e checkout, que reserva o estoque."
+    },
+    {
+      "name": "Avaliações",
+      "description": "Avaliações de produtos (MongoDB)."
+    },
+    {
+      "name": "Eventos",
+      "description": "Registro do comportamento de compra (MongoDB): visualizações, carrinho, pedidos…"
+    },
+    {
+      "name": "Relatório",
+      "description": "Relatório agregado a partir dos eventos."
+    },
+    {
+      "name": "Saúde",
+      "description": "Rotas sem login, usadas pelo Docker e pelo Kubernetes para saber se o serviço está vivo."
+    }
+  ]
 }

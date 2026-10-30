@@ -2,6 +2,7 @@ node_modules
 .git
 .github
 docs
+painel
 *.pptx
 *.docx
 *.zip
