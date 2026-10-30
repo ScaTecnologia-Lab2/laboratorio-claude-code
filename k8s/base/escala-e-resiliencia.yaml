@@ -1,0 +1,94 @@
+# ============================================================================
+# Escalabilidade (HPA) e resiliência (PodDisruptionBudget)
+# ----------------------------------------------------------------------------
+# HorizontalPodAutoscaler: a cada ~15s compara o uso de CPU dos pods com o
+# "requests.cpu" declarado no Deployment. Acima da meta → cria pods; abaixo
+# por um tempo → remove. Os números de uso vêm do metrics-server (já incluso
+# no k3s). Veja ao vivo: kubectl get hpa -n <namespace> -w
+#
+# Exemplo (backend, requests.cpu = 100m, meta 50%):
+#   2 pods usando 150m cada = 150% da meta → HPA calcula 2 × 150/50 = 6 pods.
+#
+# scaleDown com janela de 60s (o padrão é 300s) só para a demonstração do
+# teste de carga não demorar; em produção, janelas maiores evitam "sanfona".
+# ============================================================================
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: backend
+spec:
+  scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: backend }
+  minReplicas: 2
+  maxReplicas: 6
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target: { type: Utilization, averageUtilization: 50 }
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 60
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: fornecedores
+spec:
+  scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: fornecedores }
+  minReplicas: 2
+  maxReplicas: 4
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target: { type: Utilization, averageUtilization: 50 }
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 60
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: frontend
+spec:
+  scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: frontend }
+  minReplicas: 2
+  maxReplicas: 4
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target: { type: Utilization, averageUtilization: 50 }
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 60
+---
+# PodDisruptionBudget: em manutenções planejadas (ex.: `kubectl drain` de um
+# nó para atualizá-lo), o Kubernetes NUNCA deixa sobrar menos de 1 pod pronto
+# de cada serviço — o sistema continua no ar durante a manutenção.
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: backend
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels: { app: backend }
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: fornecedores
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels: { app: fornecedores }
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: frontend
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels: { app: frontend }

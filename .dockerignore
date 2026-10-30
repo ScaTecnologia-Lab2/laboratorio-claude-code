@@ -5,9 +5,10 @@ docs
 *.pptx
 *.docx
 *.zip
-*.log
-.env
-.env.*
-__pycache__
+# "**/" = em qualquer pasta (sem ele o padrão só vale na raiz do projeto)
+**/*.log
+**/.env
+**/.env.*
+**/__pycache__
 .pytest_cache
 tests

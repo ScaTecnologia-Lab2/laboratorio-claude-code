@@ -450,8 +450,13 @@ push / PR ─▶ ci.yml:  Lint (ESLint) ─▶ Testes unitários (Node) ─▶ T
           ─▶ CodeQL
                  │ 8 checks obrigatórios verdes + aprovação do code owner
                  ▼
-               merge na main ─▶ (manual) publish GHCR ─▶ (manual + aprovação) deploy production
+               merge na main ─▶ (manual) publish Docker Hub ─▶ (manual + aprovação) deploy production
+                                                                   │ grava a tag na branch producao
+                                                                   ▼
+                                                 Argo CD (no cluster k3d) ─▶ namespace labsystem
 ```
+
+**Containers e Kubernetes (2026-10-29):** o sistema roda em 4 containers — `frontend` (nginx: páginas + reverse proxy) → `backend` (Node) → `fornecedores` (Python) + `postgres`. No Kubernetes (k3d, 3 nós), cada serviço stateless é um Deployment com ≥2 pods, probes, HPA por CPU e PodDisruptionBudget; o Postgres é um StatefulSet com volume; o frontend é exposto por um Service LoadBalancer. Detalhes: `docs/CONTAINERS_K8S_GUIA.md`.
 
 Detalhes e decisões: `docs/ROTEIRO_CICD_CLAUDE_CODE.md`. Fluxo de equipe: `docs/COLABORACAO_EQUIPE.md`.
 

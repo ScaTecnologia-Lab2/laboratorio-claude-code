@@ -1,0 +1,76 @@
+# ============================================================================
+# Fornecedores (Python/Flask) — Deployment + Service interno
+# ----------------------------------------------------------------------------
+# Mesmo padrão do backend. Só o backend fala com este serviço (proxy em
+# src/routes/fornecedores.js), pelo nome DNS "fornecedores".
+# A API não tem autenticação → ClusterIP, nunca exposta para fora do cluster.
+# ============================================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: fornecedores
+  labels: { app: fornecedores }
+spec:
+  type: ClusterIP
+  selector: { app: fornecedores }
+  ports:
+    - name: http
+      port: 3001
+      targetPort: 3001
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fornecedores
+  labels: { app: fornecedores }
+spec:
+  # Sem "replicas:": controlado pelo HPA (ver comentário em backend.yaml).
+  selector:
+    matchLabels: { app: fornecedores }
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: { maxUnavailable: 0, maxSurge: 1 }
+  template:
+    metadata:
+      labels: { app: fornecedores }
+    spec:
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels: { app: fornecedores }
+      # Nó sumiu (desligado/sem rede)? Por padrão o Kubernetes espera 300s antes
+      # de recriar os pods em outro nó. 30s deixa a demonstração de falha visível.
+      tolerations:
+        - { key: node.kubernetes.io/unreachable, operator: Exists, effect: NoExecute, tolerationSeconds: 30 }
+        - { key: node.kubernetes.io/not-ready,   operator: Exists, effect: NoExecute, tolerationSeconds: 30 }
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 100
+      containers:
+        - name: fornecedores
+          image: labsystem-fornecedores
+          ports:
+            - containerPort: 3001
+          envFrom:
+            - configMapRef: { name: labsystem-config }
+            - secretRef:    { name: labsystem-db }
+          livenessProbe:
+            httpGet: { path: /health, port: 3001 }
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            httpGet: { path: /health, port: 3001 }
+            periodSeconds: 5
+          # Desligamento gracioso: ao ser removido, o pod espera 5s ANTES de parar,
+          # dando tempo de o Service tirá-lo do balanceamento. Sem isso, o
+          # kubectl drain do teste derrubava ~11% das requisições.
+          lifecycle:
+            preStop:
+              exec: { command: ["sleep", "5"] }
+          resources:
+            requests: { cpu: 50m, memory: 64Mi }
+            limits:   { cpu: 300m, memory: 192Mi }
+          securityContext:
+            allowPrivilegeEscalation: false

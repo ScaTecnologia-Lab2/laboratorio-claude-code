@@ -1,0 +1,18 @@
+# ============================================================================
+# Base comum a todos os ambientes. Não é aplicada diretamente: cada ambiente
+# (k8s/overlays/dev, k8s/overlays/producao) a reaproveita e muda só o que
+# precisa (namespace, imagens, porta). Ver tudo que seria aplicado:
+#   kubectl kustomize k8s/overlays/dev
+# ============================================================================
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+labels:
+  - pairs:
+      app.kubernetes.io/part-of: labsystem
+resources:
+  - configuracao.yaml
+  - postgres.yaml
+  - fornecedores.yaml
+  - backend.yaml
+  - frontend.yaml
+  - escala-e-resiliencia.yaml

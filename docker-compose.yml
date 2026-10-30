@@ -1,19 +1,30 @@
 # ============================================================================
-# docker-compose.yml — ambiente completo do LabSystem
+# docker-compose.yml — ambiente completo do LabSystem (4 containers)
 # ----------------------------------------------------------------------------
 #   docker compose up --build -d     # sobe tudo em segundo plano
-#   docker compose logs -f node      # acompanha os logs
+#   docker compose ps                # lista os containers e o estado de saúde
+#   docker compose logs -f backend   # acompanha os logs de um container
 #   docker compose down              # derruba (dados do Postgres ficam no volume)
 #
-# Os serviços se enxergam pelo nome (postgres, node, fornecedores) dentro da
+#   navegador ──► frontend (nginx) ──► backend (Node) ──► fornecedores (Python)
+#                  :3000 → 8080          :3000                :3001
+#                                           └──────────┬─────────┘
+#                                                   postgres :5432
+#
+# Os serviços se enxergam pelo NOME (postgres, backend, fornecedores) dentro da
 # rede do compose — por isso DB_HOST=postgres em vez de localhost.
 # Redis e MongoDB são simulados em memória pelo próprio Node (src/redis.js,
 # src/mongo.js), então não há containers para eles.
 #
 # Portas publicadas no seu computador (padrão entre parênteses) podem ser
 # trocadas por variável — útil para rodar 2 cópias lado a lado, ver
-# docs/SIMULANDO_2_DEVS.md:  APP_PORT (3000), API_PY_PORT (3001), PG_PORT (5151)
+# docs/SIMULANDO_2_DEVS.md:
+#   APP_PORT (3000)  BACKEND_PORT (3002)  API_PY_PORT (3001)  PG_PORT (5151)
 #   docker compose --env-file portas.env up --build -d
+#
+# Para usar as imagens já publicadas no Docker Hub em vez de construir:
+#   ver docs/CONTAINERS_K8S_GUIA.md, Parte 4.
+# Guia completo dos containers: docs/CONTAINERS_K8S_GUIA.md
 # ============================================================================
 services:
   postgres:
@@ -32,37 +43,59 @@ services:
     volumes:
       - labsystem_postgres_data:/var/lib/postgresql/data
 
-  node:
+  backend:
     build:
       context: .
       dockerfile: Dockerfile
+    image: labsystem-backend:dev
     environment:
       DB_HOST: postgres
       DB_PORT: "5432"
+      DB_PASSWORD: "5151"
       FORNECEDORES_HOST: fornecedores
       FORNECEDORES_PORT: "3001"
     depends_on:
       postgres:
         condition: service_healthy
     ports:
-      - "${APP_PORT:-3000}:3000"
+      # Acesso direto ao backend (sem passar pelo nginx), só para estudo/depuração.
+      - "127.0.0.1:${BACKEND_PORT:-3002}:3000"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     restart: unless-stopped
 
   fornecedores:
     build:
       context: .
       dockerfile: Dockerfile.python
+    image: labsystem-fornecedores:dev
     environment:
       DB_HOST: postgres
       DB_PORT: "5432"
+      DB_PASSWORD: "5151"
       FLASK_HOST: 0.0.0.0
     depends_on:
       postgres:
         condition: service_healthy
     ports:
       # API sem autenticação: publicada só em 127.0.0.1, para depuração.
-      # O Node a acessa pela rede interna do compose.
+      # O backend a acessa pela rede interna do compose.
       - "127.0.0.1:${API_PY_PORT:-3001}:3001"
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    image: labsystem-frontend:dev
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "${APP_PORT:-3000}:8080"   # porta de entrada do sistema
     restart: unless-stopped
 
 volumes:

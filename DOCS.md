@@ -111,7 +111,9 @@ Ponto de entrada da aplicação Node.js. Cria o servidor HTTP na porta 3000 e ce
 - Validar sessão e role antes de qualquer operação protegida
 - Delegar operações de usuários e clientes para os módulos correspondentes
 - Fazer **proxy autenticado** das rotas `/fornecedores/*` para o servidor Python na porta 3001
-- Servir arquivos estáticos de `src/public/` com proteção contra path traversal
+- Servir arquivos estáticos de `src/public/` com proteção contra path traversal (no Docker/Kubernetes quem entrega as páginas é o container `frontend`/nginx; o Node continua servindo-as para rodar sem Docker)
+- Rotas de saúde sem autenticação: `GET /health` (processo vivo) e `GET /pronto` (consegue consultar o banco) — usadas pelas probes do Kubernetes e pelo healthcheck do compose
+- Cabeçalho `X-Servido-Por` (hostname do container/pod) em toda resposta, para visualizar o balanceamento de carga
 
 **Helpers internos:**
 
@@ -215,7 +217,7 @@ Configura a conexão com o PostgreSQL via `pg`.
 | Host      | `localhost`   | `DB_HOST` (no compose: `postgres`) |
 | Porta     | `5151`        | `DB_PORT` (no compose: `5432`) |
 | Usuário   | `postgres`    | — |
-| Senha     | `5151`        | — |
+| Senha     | `5151`        | `DB_PASSWORD` (no Kubernetes: Secret `labsystem-db`) |
 | Banco     | `laboratorio` | — |
 
 Os padrões valem para rodar sem Docker; dentro do container, `localhost` seria o próprio container, por isso o compose define `DB_HOST=postgres` (nome do serviço).
@@ -242,7 +244,9 @@ API REST em **Python Flask** para o CRUD de Fornecedores. Roda na porta **3001**
 
 > A autenticação **não** é verificada pelo Python — essa responsabilidade fica no `server.js`, que valida a sessão antes de fazer o proxy. Por isso a porta 3001 é publicada só em `127.0.0.1`.
 
-**Variáveis de ambiente:** `DB_HOST` / `DB_PORT` (mesmas do `db.js`) e `FLASK_HOST` (padrão `127.0.0.1`; no container, `0.0.0.0`). O proxy do Node encontra a API por `FORNECEDORES_HOST` / `FORNECEDORES_PORT` (padrão `localhost:3001`; no compose, `fornecedores:3001`).
+**Pool de conexões:** `get_conn()` usa `psycopg2.pool.ThreadedConnectionPool` (até 10 conexões, com semáforo para as excedentes esperarem). Antes abria uma conexão por requisição, o que derrubava a API no teste de carga do Kubernetes (ver `docs/K8S_TESTE_DE_CARGA.md`). Rota extra: `GET /health` (sem banco, usada pelas probes).
+
+**Variáveis de ambiente:** `DB_HOST` / `DB_PORT` / `DB_PASSWORD` (mesmas do `db.js`) e `FLASK_HOST` (padrão `127.0.0.1`; no container, `0.0.0.0`). O proxy do Node encontra a API por `FORNECEDORES_HOST` / `FORNECEDORES_PORT` (padrão `localhost:3001`; no compose, `fornecedores:3001`).
 
 ---
 
@@ -421,13 +425,13 @@ CREATE TABLE fornecedores (
 Pré-requisito: Docker + Docker Compose.
 
 ```bash
-docker compose up --build -d     # postgres (5151), node (3000), fornecedores (3001)
-docker compose ps                # os 3 serviços "Up"
-docker compose logs -f node      # logs do app
+docker compose up --build -d     # postgres (5151), frontend (3000), backend (3002), fornecedores (3001)
+docker compose ps                # os 4 serviços "Up"
+docker compose logs -f backend   # logs do backend
 docker compose down              # parar (dados ficam no volume)
 ```
 
-Portas configuráveis (`APP_PORT`, `API_PY_PORT`, `PG_PORT`) para rodar várias cópias lado a lado — ver `docs/SIMULANDO_2_DEVS.md`.
+Portas configuráveis (`APP_PORT`, `BACKEND_PORT`, `API_PY_PORT`, `PG_PORT`) para rodar várias cópias lado a lado — ver `docs/SIMULANDO_2_DEVS.md`.
 
 ### Opção 2 — Sem Docker
 
@@ -485,12 +489,17 @@ Os mesmos comandos rodam no GitHub Actions (`.github/workflows/ci.yml`) em todo 
 
 | Arquivo | O que faz |
 |---------|-----------|
-| `Dockerfile` | Imagem Node 24 (multi-stage, usuário não-root, **sem npm no runtime**) |
+| `Dockerfile` | Imagem **backend** Node 24 (multi-stage, usuário não-root, **sem npm no runtime**) |
+| `Dockerfile.frontend` + `frontend/default.conf.template` | Imagem **frontend**: nginx não-root (porta 8080) serve `src/public` e repassa as rotas da API ao backend; resolve o nome do backend em tempo de execução |
 | `Dockerfile.python` | Imagem Python 3.13 (usuário não-root, **sem pip/setuptools/wheel no runtime**) |
-| `docker-compose.yml` | Postgres + Node + Python; variáveis de host/porta; Postgres e API Python só em `127.0.0.1` |
-| `.dockerignore` | Mantém fora da imagem docs, testes, `.env`, `node_modules` etc. |
+| `docker-compose.yml` | 4 containers: frontend (3000) → backend (3002, só local) → fornecedores (3001, só local) + Postgres (5151, só local) |
+| `docker-compose.hub.yml` | Os mesmos 4, **baixando** as imagens do Docker Hub (sem `build:`) |
+| `k8s/base/`, `k8s/overlays/{dev,producao}/` | Manifestos Kubernetes (Kustomize): Deployments, StatefulSet do Postgres, Services (LoadBalancer no frontend), ConfigMap/Secret, probes, HPA, PDB. Dev: `labsystem-dev`, porta 8081; produção: `labsystem`, porta 8080 |
+| `k8s/argocd/application.yaml` | Argo CD (GitOps): produção = branch `producao`, pasta `k8s/overlays/producao` |
+| `scripts/k8s/` | `criar-cluster.sh` (k3d, 1+2 nós), `dev-deploy.sh`, `publicar-dockerhub.sh`, `instalar-argocd.sh`, `painel-argocd.sh`, `teste-carga.sh` + `carga.js` (k6), `assistir.sh`, `destruir-cluster.sh` |
+| `.dockerignore` | Mantém fora da imagem docs, testes, `.env`, `*.log`, `node_modules` etc. (padrões `**/` valem em qualquer pasta) |
 | `.github/workflows/ci.yml` | Jobs separados: Lint (ESLint), Lint (Flake8), Testes unitários (Node/Python), Testes de integração (Postgres via `services:`), Scan de segurança (npm audit, pip-audit, bandit). `permissions: contents: read` |
-| `.github/workflows/docker-build.yml` | Build + scan Trivy (automático em push/PR na `main`); publish no GHCR e deploy em produção só por disparo manual, deploy com aprovação no Environment `production` |
+| `.github/workflows/docker-build.yml` | Build + scan Trivy das 3 imagens (automático em push/PR na `main`); publish no **Docker Hub** e deploy em produção só por disparo manual — o deploy, com aprovação no Environment `production`, grava a nova tag na branch `producao` e o Argo CD aplica no cluster |
 | `.github/dependabot.yml` | npm, pip, actions e docker, semanal; ignora trocas major de Node e minor/major de Python (decisão planejada) |
 | `eslint.config.js` | Regras de lint JS (flat config) |
 | `.flake8` | Regras de lint Python |

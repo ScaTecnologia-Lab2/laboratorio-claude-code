@@ -1,0 +1,35 @@
+# ============================================================================
+# Application do Argo CD — "produção = o que está na branch producao"
+# ----------------------------------------------------------------------------
+# O Argo CD roda DENTRO do cluster e, a cada ~3 min, compara:
+#   o que o Git diz (branch producao, pasta k8s/overlays/producao)
+#   × o que está rodando no namespace labsystem.
+# Diferença? Ele sincroniza (aplica o Git no cluster).
+#
+#   automated.selfHeal: alguém mudou algo à mão no cluster (kubectl edit)?
+#                       O Argo desfaz — o Git é a única fonte da verdade.
+#   automated.prune:    tirou um objeto do Git? O Argo apaga do cluster.
+#
+# O repositório é público, então o Argo lê sem credencial.
+# Instalado por: sh scripts/k8s/instalar-argocd.sh
+# ============================================================================
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: labsystem-producao
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/ScaTecnologia-Lab2/laboratorio-claude-code.git
+    targetRevision: producao          # branch gravada pelo job deploy-production
+    path: k8s/overlays/producao
+  destination:
+    server: https://kubernetes.default.svc   # o próprio cluster onde o Argo roda
+    namespace: labsystem
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

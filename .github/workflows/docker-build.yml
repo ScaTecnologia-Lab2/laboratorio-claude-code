@@ -3,23 +3,26 @@ name: Docker Build, Scan & Deploy
 # ============================================================================
 # GATILHOS:
 #   - push / pull_request na main → roda AUTOMATICAMENTE só build + scan
-#     (Trivy). Uma imagem com vulnerabilidade CRITICAL/HIGH quebra o PR.
-#   - workflow_dispatch (manual, aba Actions) → build + scan e, se marcado
-#     nos inputs, publish no GHCR e/ou deploy em produção.
+#     (Trivy) das 3 imagens. Uma imagem com vulnerabilidade CRITICAL/HIGH
+#     quebra o PR.
+#   - workflow_dispatch (manual, aba Actions → "Run workflow") → build + scan
+#     e, se marcado nos inputs, publish no Docker Hub e/ou deploy em produção.
 # Publish e deploy NUNCA rodam automaticamente: os dois jobs exigem
 # github.event_name == 'workflow_dispatch'. O hook
 # .claude/hooks/pipeline-guardrail.js bloqueia edições que removam essa trava.
 #
-# Caminho completo representado aqui (ver docs/COLABORACAO_EQUIPE.md e
-# docs/ROTEIRO_CICD_CLAUDE_CODE.md, Passo 7):
-#   build imagem → scan de vulnerabilidade da imagem (Trivy) → (opcional)
-#   publicar no registry → deploy em produção, SÓ liberado depois de
-#   aprovação humana no ambiente protegido "production" (GitHub Environment).
-# Configurar o ambiente: Settings → Environments → New environment →
-# "production" → Required reviewers (adicionar quem pode aprovar deploys).
-# Sem essa configuração, os jobs deploy-* ficam esperando indefinidamente,
-# o que é o comportamento correto (nada vai para produção sem uma pessoa
-# aprovar explicitamente).
+# Caminho completo (GitOps com Argo CD — ver docs/K8S_FLUXO_DEV_CICD.md):
+#   build → scan (Trivy) → publish no Docker Hub (tag = SHA do commit)
+#   → deploy-production: SÓ depois de aprovação humana no ambiente protegido
+#     "production", grava a nova tag em k8s/overlays/producao na branch
+#     `producao` → o Argo CD, dentro do cluster, percebe e aplica.
+# O GitHub nunca acessa o cluster: é o cluster que puxa do Git.
+#
+# Configuração necessária (uma vez), em Settings → Secrets and variables →
+# Actions:
+#   - Variable DOCKERHUB_USERNAME = seu usuário do Docker Hub
+#   - Secret   DOCKERHUB_TOKEN    = access token do Docker Hub (Read & Write)
+# E o Environment "production" com Required reviewers (já existe).
 # ============================================================================
 on:
   push:
@@ -29,22 +32,24 @@ on:
   workflow_dispatch:
     inputs:
       push_image:
-        description: "Publicar a imagem no GitHub Container Registry (ghcr.io)?"
+        description: "Publicar as 3 imagens no Docker Hub (tag = SHA do commit)?"
         type: boolean
         default: false
       deploy_production:
-        description: "Rodar o deploy em produção após o build+scan (requer aprovação do ambiente production)?"
+        description: "Deploy em produção (Kubernetes via Argo CD)? Exige publicar e aprovação do ambiente production."
         type: boolean
         default: false
 
 # Menor privilégio: o GITHUB_TOKEN dos jobs só lê o repositório.
-# O job `publish` declara `packages: write` por conta própria.
+# Só o job `deploy-production` declara `contents: write` (grava a branch producao).
 permissions:
   contents: read
 
 jobs:
   # ──────────────────────────────────────────────────────────────────────
-  # BUILD — gera a imagem a partir do Dockerfile correspondente.
+  # BUILD — gera cada imagem a partir do Dockerfile correspondente.
+  # (Os nomes "Build imagem Node"/"...Python" são checks obrigatórios do
+  # ruleset da main — não renomeie sem atualizar o ruleset.)
   # ──────────────────────────────────────────────────────────────────────
   build-node:
     name: Build imagem Node
@@ -74,6 +79,21 @@ jobs:
         with:
           name: image-fornecedores
           path: labsystem-fornecedores.tar
+          retention-days: 1
+
+  build-frontend:
+    name: Build imagem Frontend (nginx)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Build
+        run: docker build -t labsystem-frontend:${{ github.sha }} -f Dockerfile.frontend .
+      - name: Salvar imagem para os próximos jobs
+        run: docker save labsystem-frontend:${{ github.sha }} -o labsystem-frontend.tar
+      - uses: actions/upload-artifact@v7
+        with:
+          name: image-frontend
+          path: labsystem-frontend.tar
           retention-days: 1
 
   # ──────────────────────────────────────────────────────────────────────
@@ -119,18 +139,35 @@ jobs:
           exit-code: "1"
           ignore-unfixed: true
 
+  scan-frontend:
+    name: Scan de vulnerabilidades — imagem Frontend
+    runs-on: ubuntu-latest
+    needs: build-frontend
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: image-frontend
+      - run: docker load -i labsystem-frontend.tar
+      - name: Trivy — scan da imagem
+        # Fixado por SHA do commit (v0.36.0): tags podem ser reapontadas, o SHA não.
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: "labsystem-frontend:${{ github.sha }}"
+          severity: "CRITICAL,HIGH"
+          exit-code: "1"
+          ignore-unfixed: true
+
   # ──────────────────────────────────────────────────────────────────────
   # PUBLISH (opcional) — só roda se `push_image` for marcado ao disparar
-  # o workflow manualmente. Requer as imagens já aprovadas no scan.
+  # o workflow manualmente. Requer as 3 imagens aprovadas no scan.
+  # Publica no Docker Hub como <usuario>/labsystem-<servico>:<sha>.
+  # ("backend" é a imagem do Dockerfile Node — mesmo nome usado no Kubernetes.)
   # ──────────────────────────────────────────────────────────────────────
   publish:
-    name: Publicar imagens no GHCR (opcional)
+    name: Publicar imagens no Docker Hub (opcional)
     runs-on: ubuntu-latest
-    needs: [scan-node, scan-python]
+    needs: [scan-node, scan-python, scan-frontend]
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.push_image }}
-    permissions:
-      contents: read
-      packages: write
     steps:
       - uses: actions/download-artifact@v8
         with:
@@ -138,49 +175,71 @@ jobs:
       - uses: actions/download-artifact@v8
         with:
           name: image-fornecedores
+      - uses: actions/download-artifact@v8
+        with:
+          name: image-frontend
       - run: |
           docker load -i labsystem-node.tar
           docker load -i labsystem-fornecedores.tar
-      - name: Login no GHCR
+          docker load -i labsystem-frontend.tar
+      - name: Login no Docker Hub
         uses: docker/login-action@v4
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          username: ${{ vars.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
       - name: Tag e push
+        env:
+          USUARIO: ${{ vars.DOCKERHUB_USERNAME }}
+          SHA: ${{ github.sha }}
         run: |
-          docker tag labsystem-node:${{ github.sha }} ghcr.io/${{ github.repository }}/labsystem-node:${{ github.sha }}
-          docker push ghcr.io/${{ github.repository }}/labsystem-node:${{ github.sha }}
-          docker tag labsystem-fornecedores:${{ github.sha }} ghcr.io/${{ github.repository }}/labsystem-fornecedores:${{ github.sha }}
-          docker push ghcr.io/${{ github.repository }}/labsystem-fornecedores:${{ github.sha }}
+          for par in node:backend fornecedores:fornecedores frontend:frontend; do
+            local_name=labsystem-${par%%:*}
+            hub_name=docker.io/$USUARIO/labsystem-${par##*:}
+            docker tag "$local_name:$SHA" "$hub_name:$SHA"
+            docker push "$hub_name:$SHA"
+          done
 
   # ──────────────────────────────────────────────────────────────────────
-  # DEPLOY — só roda se `deploy_production` for marcado E alguém com
-  # permissão aprovar no ambiente "production" (GitHub Environment com
-  # required reviewers). É o "portão de segurança humano" antes de
-  # produção: mesmo com build e scan verdes, uma pessoa precisa dizer
-  # explicitamente "pode ir".
+  # DEPLOY — só roda se `deploy_production` E `push_image` forem marcados E
+  # alguém com permissão aprovar no ambiente "production" (GitHub
+  # Environment com required reviewers): o "portão de segurança humano".
   #
-  # SIMULADO neste laboratório (não há servidor de produção real). Em um
-  # projeto real, os passos "echo" abaixo seriam substituídos por, por
-  # exemplo, uma action de SSH/kubectl/docker-compose contra o servidor
-  # de destino.
+  # GitOps: este job NÃO fala com o cluster. Ele grava a nova versão no Git
+  # (branch `producao` = main neste commit + troca da tag das imagens) e o
+  # Argo CD, que observa essa branch (k8s/argocd/application.yaml), aplica.
+  # Rollback: reexecute ("Re-run all jobs") um run antigo deste workflow —
+  # ele grava de volta a tag daquele commit (e pede aprovação de novo).
   # ──────────────────────────────────────────────────────────────────────
   deploy-production:
     name: Deploy em produção (requer aprovação)
     runs-on: ubuntu-latest
-    needs: [scan-node, scan-python]
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.deploy_production }}
+    needs: [publish]
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.deploy_production && inputs.push_image }}
     environment:
       name: production
-      # url: https://labsystem.exemplo.com   # descomente quando existir ambiente real
+    permissions:
+      contents: write   # para gravar a branch producao
     steps:
       - uses: actions/checkout@v7
-      - name: Deploy (placeholder — substituir por SSH/kubectl/etc. em ambiente real)
+      - name: Gravar a nova versão em k8s/overlays/producao
+        env:
+          SHA: ${{ github.sha }}
+          USUARIO: ${{ vars.DOCKERHUB_USERNAME }}
         run: |
-          echo "Deploy aprovado por revisor humano do ambiente 'production'."
-          echo "Imagem: labsystem-node:${{ github.sha }}"
-          echo "Em um ambiente real, aqui rodaria, por exemplo:"
-          echo "  docker compose -f docker-compose.yml pull"
-          echo "  docker compose -f docker-compose.yml up -d"
-          echo "  (ou kubectl set image / uma action de deploy do provedor de nuvem)"
+          # Usuário do Docker Hub (vem da variável do repositório) e tag = SHA.
+          sed -i "s#docker.io/[^/]*/labsystem-#docker.io/$USUARIO/labsystem-#" k8s/overlays/producao/kustomization.yaml
+          sed -i "s/^\(    newTag:\).*/\1 \"$SHA\"/" k8s/overlays/producao/kustomization.yaml
+          grep -n "newName\|newTag" k8s/overlays/producao/kustomization.yaml
+      - name: Publicar na branch producao (o Argo CD aplica em até ~3 min)
+        env:
+          SHA: ${{ github.sha }}
+          ACTOR: ${{ github.actor }}
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -am "deploy: produção na versão ${SHA::7} (aprovado no environment production, disparado por $ACTOR)"
+          # A branch producao é um "ponteiro" do que roda em produção: cada
+          # deploy a substitui por main@SHA + 1 commit com a tag nova.
+          git push --force origin HEAD:producao
+          echo "### Deploy gravado na branch producao: \`${SHA::7}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "O Argo CD sincroniza em até ~3 minutos (ou clique em Refresh no painel)." >> "$GITHUB_STEP_SUMMARY"

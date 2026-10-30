@@ -2,7 +2,7 @@
 
 > **Leia este arquivo primeiro, antes de qualquer outro documento.** Ele existe para que uma nova sessão do Claude Code (ou você, voltando depois de um tempo, ou em outra máquina) saiba em 1 minuto o que já foi feito, o que falta, e o que fazer a seguir — sem precisar reconstruir o histórico da conversa.
 >
-> Última atualização: 2026-09-28. Se você (Claude Code) alterar algo relevante ao estado do laboratório, **atualize este arquivo antes de terminar a sessão**.
+> Última atualização: 2026-10-29. Se você (Claude Code) alterar algo relevante ao estado do laboratório, **atualize este arquivo antes de terminar a sessão**.
 
 ---
 
@@ -36,7 +36,8 @@ As partes 2 e 3 são o trabalho mais recente (documentado abaixo). Desde 2026-09
 | Categoria | Arquivos |
 |---|---|
 | Esteira CI (ativa) | `.github/workflows/ci.yml` — lint, testes unitários/integração (Postgres real via `services:`), scan de segurança |
-| Esteira Docker | `.github/workflows/docker-build.yml` — build + scan Trivy **automáticos** em push/PR na `main`; publish (GHCR) e deploy em produção **só manuais** (`workflow_dispatch`, deploy exige aprovação humana no Environment `production`) |
+| Esteira Docker | `.github/workflows/docker-build.yml` — build + scan Trivy das 3 imagens **automáticos** em push/PR na `main`; publish (**Docker Hub**) e deploy em produção **só manuais** (`workflow_dispatch`, deploy exige aprovação humana no Environment `production` e grava a tag na branch `producao`, aplicada pelo Argo CD) |
+| Containers e Kubernetes | 4 containers (`Dockerfile.frontend` nginx, `Dockerfile` backend, `Dockerfile.python`, Postgres); `k8s/` (Kustomize: base + overlays dev/producao, HPA, PDB, LoadBalancer); `k8s/argocd/`; `scripts/k8s/`; guias `CONTAINERS_K8S_GUIA.md`, `K8S_FLUXO_DEV_CICD.md`, `K8S_TESTE_DE_CARGA.md` |
 | Containers (**ativos e validados**) | `Dockerfile`, `Dockerfile.python`, `docker-compose.yml`, `.dockerignore` — `docker compose up --build -d` |
 | Qualidade de código | `eslint.config.js`, `.flake8`, `requirements-dev.txt`, `tests/test_fornecedores_api.py`, `tests/conftest.py` |
 | Colaboração em equipe | `CODEOWNERS`, `.github/pull_request_template.md`, `.github/ISSUE_TEMPLATE/tarefa.yml`, `.github/ISSUE_TEMPLATE/bug.yml`, `.github/ISSUE_TEMPLATE/config.yml` |
@@ -94,6 +95,24 @@ Isto é o que falta para "levar o laboratório para valer" (itens riscados já f
 17. ~~Repositório na organização~~ — em 2026-09-25 o repositório foi transferido para a organização **ScaTecnologia-Lab2** (plano Free; membros: ScaTecnologia admin, sca-dev1, sca-dev2). Preservados: ruleset, Environment `production`, colaboradores. A transferência **desligou** CodeQL e secret scanning/push protection — religados em 2026-09-28. Novo board na organização: https://github.com/orgs/ScaTecnologia-Lab2/projects/1 (público, devs com permissão de escrita, cards #27 e #29). O board antigo da conta pessoal ficou só como histórico. Remoto das 3 pastas e links da documentação atualizados.
 18. ~~Primeira revisão real entre contas~~ — feito em 2026-09-28: o PR #32 (aberto por ScaTecnologia) foi **aprovado por sca-dev1** e mergeado com os checks verdes. Como aprovar: entrar como outra conta (janela anônima no navegador → *Files changed* → *Review changes* → *Approve*; ou `gh auth switch -u sca-dev1` + `gh pr review <n> --approve`, e depois `gh auth switch -u ScaTecnologia` para voltar). Ninguém aprova o próprio PR. Limpeza local: apagadas as branches já mergeadas `chore/time-com-contas-reais` e `chore/python-3.13` (`git branch -d` + `git fetch --prune`); hoje só existe a `main`.
 19. **Próximo (opcional):** planejar Node 24 → 26 LTS depois de 2026-10-28.
+20. ~~Containers separados + Kubernetes (k3d) + GitOps (Argo CD) + teste de carga~~ — construído em 2026-10-29 na branch `feat/containers-kubernetes` (detalhes na seção "Sessão 2026-10-29" abaixo). **Pendente:**
+    - **Mergear o PR #42** (corrige o Trivy da imagem Python, issue #41) **antes** — sem ele o scan Python falha em todos os PRs, inclusive o desta branch. Depois: `git rebase origin/main` nesta branch.
+    - **Push da branch + PR** — não feitos pelo Claude (ações no GitHub foram bloqueadas pelo modo de permissão; o usuário faz ou libera).
+    - **Configurar no GitHub:** variável `DOCKERHUB_USERNAME` e secret `DOCKERHUB_TOKEN` (Settings → Secrets and variables → Actions). Depois, o 1º deploy (Actions → Run workflow, publish + deploy, aprovar) cria a branch `producao` e o Argo CD sobe a produção em http://localhost:8080 — **ainda não testado de ponta a ponta** (o overlay de produção foi testado no cluster com imagens locais).
+    - Os outros PRs abertos (#39, #40, #38, #43, #44, #46) aguardam aprovação; #39/#40/#38 precisam de *Update branch* depois do #42. O #40 também altera este arquivo — esperar conflito simples.
+    - `.docx` de `docs/` regenerados nesta sessão (`sh docs/atualizar_docx.sh`), incluindo os 3 guias novos.
+
+---
+
+### Sessão 2026-10-29 — containers separados, Kubernetes, GitOps e carga
+
+- **Ferramentas:** `kubectl` v1.37.2 e `k3d` v5.9.0 em `~/.local/bin` (binários oficiais, checksum conferido). Gerador de carga k6 e Argo CD rodam em container/cluster — nada mais instalado.
+- **Código:** `/health` e `/pronto` no Node, `/health` no Python; cabeçalho `X-Servido-Por`; `DB_PASSWORD` por variável (padrão `5151`); **pool de conexões** no `fornecedores_api.py` (sem ele, 3% de erros no teste de carga).
+- **Compose:** serviço `node` virou `backend` (porta 127.0.0.1:3002, variável `BACKEND_PORT`); `frontend` nginx na 3000. `portas.env` de `~/devs/dev1|dev2` ganharam `BACKEND_PORT` (3012/3022).
+- **Cluster `labsystem`** (k3d, 1 servidor + 2 agentes, sem Traefik, CoreDNS com 2 cópias): dev em `labsystem-dev` (:8081), Argo CD instalado (v3.5.6) aguardando a branch `producao`. Parar: `sh scripts/k8s/destruir-cluster.sh`. **O compose fica parado** enquanto o cluster roda (RAM).
+- **Medido de verdade:** carga 60 usuários → HPA 2→6 backends, 0% de erros, 147 req/s; matar pod, rolling update e `kubectl drain`: **0 falhas**; desligar um nó: ~45s de falhas até `NotReady`, depois 100%.
+- **Problemas encontrados e corrigidos na construção** (todos documentados nos guias como lições): nginx guardava o IP do backend (502 ao recriar) → template com `resolver`; CoreDNS com 1 cópia era ponto único de falha; sem `preStop` o drain derrubava 11%; `replicas:` fixo brigaria com o HPA/Argo; `.dockerignore` sem `**/` levava `src/public/bash_commands.log` para as imagens.
+- ⚠️ **Incidente:** rodei `npm run test:integration` contra o Postgres do compose (5151) e o `usuarios.test.js` fez `TRUNCATE` em `usuarios`, apagando os usuários do banco de desenvolvimento. Recriada a conta do `CLAUDE.md` (Alex Augusto, id 3); ficou o usuário de teste "Eduardo" (`edu@email.com`). Outros usuários que existissem foram perdidos (sem backup). Avisos adicionados no `CLAUDE.md` e no guia de fluxo.
 
 ---
 
@@ -109,6 +128,8 @@ Ver `docs/SETUP_NOVA_MAQUINA.md` para o passo a passo completo de portabilidade 
 |---|---|---|
 | `.git/index.lock` existe e não pôde ser removido durante esta sessão | Sincronização do OneDrive prendendo o arquivo (o projeto vive dentro de uma pasta OneDrive) | Feche o OneDrive temporariamente ou apague o arquivo manualmente pelo Explorer/PowerShell (`Remove-Item .git\index.lock`) antes do próximo `git add`/`commit`. Se o erro voltar a acontecer com frequência, considere mover o repositório para fora da pasta sincronizada pelo OneDrive, ou excluir a pasta `.git` da sincronização (OneDrive → configurações → ignorar pasta). |
 | `docs/DEVOPS_GUIA.pdf` e `docs/.~lock.DEVOPS_GUIA.pdf#` | Gerados ao converter o `.docx` para PDF só para conferência visual; o LibreOffice/OneDrive travou o arquivo antes de eu conseguir apagá-lo | Apague os dois manualmente quando puder; não afetam o funcionamento de nada. |
+| `npm run test:integration` apaga a tabela `usuarios` | `src/usuarios.test.js` faz `TRUNCATE` (no CI o Postgres é descartável) | Rode contra um Postgres descartável: `docker run --rm -d --name pg-teste -p 127.0.0.1:5199:5432 -e POSTGRES_PASSWORD=5151 postgres:16-alpine` e `DB_PORT=5199 npm run test:integration`. Nunca contra a 5151. |
+| Cluster k3d + compose ao mesmo tempo deixam a máquina sem RAM | 8 GB no total; cluster com Argo CD usa ~1,8 GB | Pare um antes de subir o outro (`docker compose down` / `sh scripts/k8s/destruir-cluster.sh`). |
 | Testes `teste_servidor.js` não estão na esteira de CI | Exigem o servidor Node rodando de verdade na porta 3000, o que complica automação simples em CI | Ficou de fora por decisão consciente (ver `docs/ROTEIRO_CICD_CLAUDE_CODE.md`, Passo 4) — rode manualmente quando precisar: `node src/server.js` em um terminal, `node src/teste_servidor.js` em outro. |
 
 ---
