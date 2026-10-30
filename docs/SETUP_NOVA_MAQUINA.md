@@ -109,6 +109,10 @@ Passo a passo completo: `docs/CONTAINERS_K8S_GUIA.md`.
 
 URLs em `CLAUDE.md`.
 
+### Painel de Aprendizado (opcional)
+
+`npm run painel` → http://localhost:3100 (containers, Kubernetes e Console SQL). Precisa de `docker` e, para a aba Kubernetes, de `kubectl` com o cluster `labsystem` de pé; o Console SQL usa o Postgres do Compose (5151). Guia: `docs/PAINEL_APRENDIZADO.md`. Para verificar as telas sem a extensão do Chrome do Claude Code, use o `google-chrome --headless=new --remote-debugging-port=9333` e o protocolo CDP.
+
 ## 7. O que reconfigurar (não é copiado automaticamente)
 
 | Item | Por quê | Onde fazer |

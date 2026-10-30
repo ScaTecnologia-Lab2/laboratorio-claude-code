@@ -175,6 +175,7 @@ Detalhes e problemas encontrados: `docs/STATUS_LABORATORIO.md` (seção da sess�
 
 ### 27. Painel de Aprendizado e Swagger completo (2026-10-30)
 - `painel/` (porta 3100, fora dos containers): telas de Containers, Kubernetes (mapa de nós/pods, HPA, eventos, logs) e Console SQL com 3 modos (leitura / simular com ROLLBACK / gravar), cada uma com textos explicativos. Guia: `docs/PAINEL_APRENDIZADO.md`.
+- Em produção desde 2026-10-30 (PR #51, deploy `4588d35`). Telas conferidas num navegador real (Chrome headless via CDP); achados corrigidos no PR #53 (menu no celular, favicon).
 - `swagger.json` passou de 9 para 36 caminhos (55 operações): todas as rotas, com passo a passo de login na descrição e servidor relativo (`/`), válido em Compose, K8s dev e produção.
 
 ---
