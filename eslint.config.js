@@ -9,7 +9,7 @@ const globals = require('globals');
 
 module.exports = [
   // Equivalente ao antigo ignorePatterns.
-  { ignores: ['node_modules/', 'docs/', '**/*.min.js', 'src/public/'] },
+  { ignores: ['node_modules/', 'docs/', '**/*.min.js', 'src/public/', 'painel/public/'] },
 
   js.configs.recommended,
 

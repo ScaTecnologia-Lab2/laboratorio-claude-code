@@ -448,6 +448,10 @@ docker compose up --build -d
 - `COMPOSE_PROJECT_NAME` + portas diferentes permitem várias cópias isoladas (containers e bancos próprios) na mesma máquina — `docs/SIMULANDO_2_DEVS.md`.
 - Redis e MongoDB não têm container: são adaptadores em memória dentro do processo Node.
 
+## Painel de Aprendizado (fora da aplicação)
+
+Um servidor separado (`painel/servidor.js`, porta 3100) que roda no computador do dev, **não** em container: ele precisa dos comandos `docker` e `kubectl`, e dar o `docker.sock` ao backend entregaria a máquina a quem invadisse o app. Escuta só em `127.0.0.1`, exige `Host`/`Origin` locais e o cabeçalho `X-Painel`, e executa comandos sem shell com nomes validados. Também oferece um console SQL (somente leitura por padrão) sobre o banco do Compose. Ver `docs/PAINEL_APRENDIZADO.md`.
+
 ## Esteira CI/CD
 
 ```

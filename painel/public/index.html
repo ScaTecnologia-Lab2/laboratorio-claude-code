@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Painel de Aprendizado — LabSystem</title>
+  <link rel="stylesheet" href="/css/styles.css" />
+  <link rel="stylesheet" href="/css/painel.css" />
+</head>
+<body>
+
+  <header class="header">
+    <a href="/" class="header-logo">Lab<span>System</span><small>Painel</small></a>
+    <nav class="nav" aria-label="Menu do painel">
+      <a href="/" class="active">Início</a>
+      <a href="/containers.html">Containers</a>
+      <a href="/kubernetes.html">Kubernetes</a>
+      <a href="/sql.html">Console SQL</a>
+      <a href="http://localhost:3000/api-docs">API Docs</a>
+      <a href="http://localhost:3000/">LabSystem</a>
+    </nav>
+  </header>
+
+  <main class="main">
+    <div class="container container-wide">
+
+      <h1 class="page-title">Painel de Aprendizado</h1>
+      <p class="page-sub">Veja por dentro como o LabSystem funciona: os containers, o Kubernetes, o banco de dados e a API. Tudo ao vivo, com explicações em cada tela.</p>
+
+      <div id="msg" class="mensagem" role="alert"></div>
+
+      <div class="card">
+        <p class="card-title">Mapa da aplicação — quem conversa com quem</p>
+        <p class="nota">Quando você abre o LabSystem no navegador, o pedido passa por estas peças, da esquerda para a direita. Embaixo de cada uma, o estado dela nos dois jeitos de rodar a aplicação (os números do Kubernetes são "prontos / desejados").</p>
+        <div class="fluxo" id="fluxo"></div>
+        <p class="fluxo-seta">O <strong>frontend</strong> entrega as páginas e repassa as chamadas da API ao <strong>backend</strong>. O backend cuida do login e fala com o <strong>postgres</strong>; para fornecedores ele passa a chamada ao serviço <strong>Python</strong>, que também usa o postgres.</p>
+      </div>
+
+      <div class="cards-ferramentas">
+        <div class="card">
+          <h3>Containers</h3>
+          <p>Veja cada container do Docker: se está de pé, quanto consome e o que escreveu nos logs. Aqui você descobre, por exemplo, por que um serviço fica reiniciando.</p>
+          <a class="btn btn-primary" href="/containers.html">Abrir Containers</a>
+        </div>
+        <div class="card">
+          <h3>Kubernetes</h3>
+          <p>Mapa dos nós e pods, deployments, services, autoescala (HPA) e os eventos do cluster. Veja o Kubernetes repor um pod ou criar réplicas sob carga.</p>
+          <a class="btn btn-primary" href="/kubernetes.html">Abrir Kubernetes</a>
+        </div>
+        <div class="card">
+          <h3>Console SQL</h3>
+          <p>Explore as tabelas e escreva SQL contra o banco. Começa em modo somente leitura, e tem um modo para simular alterações sem gravar.</p>
+          <a class="btn btn-primary" href="/sql.html">Abrir Console SQL</a>
+        </div>
+        <div class="card">
+          <h3>API Docs (Swagger)</h3>
+          <p>Teste as rotas da API do LabSystem direto no navegador: faça login, liste clientes, crie produtos e veja as respostas.</p>
+          <a class="btn btn-primary" href="http://localhost:3000/api-docs">Abrir API Docs</a>
+        </div>
+      </div>
+
+      <div class="card">
+        <p class="card-title">Dois jeitos de rodar a mesma aplicação</p>
+        <div class="comparativo">
+          <div>
+            <h3>Docker Compose (um computador)</h3>
+            <p>Um arquivo (<code>docker-compose.yml</code>) liga os 4 containers na sua máquina. Simples e rápido, ideal para desenvolver. Se um container cair, o Docker tenta religá-lo, mas existe só <strong>uma cópia</strong> de cada. Acesso: <code>localhost:3000</code>.</p>
+          </div>
+          <div>
+            <h3>Kubernetes (vários computadores)</h3>
+            <p>O cluster espalha <strong>várias cópias</strong> (pods) por 3 nós, troca versões sem parar o sistema, repõe pods que caem e cria mais sob carga. Acesso: <code>localhost:8081</code> (desenvolvimento) e <code>localhost:8080</code> (produção).</p>
+          </div>
+        </div>
+        <p class="nota">Por causa da memória do computador, rode um de cada vez: <code>docker compose down</code> antes de subir o cluster, e o contrário.</p>
+      </div>
+
+      <div class="card">
+        <p class="card-title">Roteiro de estudo sugerido</p>
+        <ol class="roteiro">
+          <li>Em <a href="/containers.html">Containers</a>, identifique os 4 serviços e veja se estão saudáveis. Abra os logs de um deles.</li>
+          <li>No <a href="/sql.html">Console SQL</a>, rode <code>SELECT * FROM clientes</code> e conte as linhas. Depois teste um <code>UPDATE</code> no modo <em>Simular</em> e confira que nada mudou.</li>
+          <li>Em <a href="/kubernetes.html">Kubernetes</a>, compare os pods de <code>labsystem-dev</code> e <code>labsystem</code> e veja em que nó cada um está.</li>
+          <li>No terminal, apague um pod (<code>kubectl delete pod &lt;nome&gt; -n labsystem-dev</code>) e volte ao painel: o Kubernetes cria outro no lugar.</li>
+          <li>Rode <code>sh scripts/k8s/teste-carga.sh dev 60 4</code> e observe o HPA aumentar as réplicas do backend.</li>
+          <li>Use o <a href="http://localhost:3000/api-docs">Swagger</a> para fazer login e criar um cliente; depois confirme no Console SQL que a linha apareceu na tabela.</li>
+        </ol>
+      </div>
+
+    </div>
+  </main>
+
+  <footer class="footer">Painel de Aprendizado — roda só neste computador (127.0.0.1)</footer>
+
+  <script src="/js/comum.js"></script>
+  <script src="/js/inicio.js"></script>
+</body>
+</html>

@@ -32,6 +32,9 @@ sh scripts/k8s/dev-deploy.sh [svc]    # build + import + apply no namespace labs
 sh scripts/k8s/teste-carga.sh dev 60 4   # k6 em container; ver HPA escalando
 sh scripts/k8s/destruir-cluster.sh    # para o cluster ("tudo" = apaga)
 
+# Painel de Aprendizado (containers, Kubernetes, console SQL) — roda no seu computador, porta 3100
+npm run painel                 # http://localhost:3100  (docs/PAINEL_APRENDIZADO.md)
+
 # Iniciar o servidor Node.js (porta 3000)
 node src/server.js
 
@@ -76,7 +79,8 @@ bandit -r src/ -q                     # SAST Python
 | `http://localhost:3000/clientes.html` | CRUD Clientes |
 | `http://localhost:3000/fornecedores.html` | CRUD Fornecedores |
 | `http://localhost:3000/usuarios.html` | CRUD Usuários (Admin) |
-| `http://localhost:3000/api-docs` | Swagger UI |
+| `http://localhost:3000/api-docs` | Swagger UI (todas as rotas, com "Try it out") |
+| `http://localhost:3100` | Painel de Aprendizado: containers, Kubernetes, console SQL (`npm run painel`) |
 | `http://localhost:3001/fornecedores` | API Python direta (não usar no browser — sem auth) |
 | `http://localhost:3002/health` | Backend Node direto, sem o nginx (compose) |
 | `http://localhost:8081` | Kubernetes — ambiente dev (`labsystem-dev`); login `admin@labsystem.com` / `admin123` |
@@ -137,5 +141,6 @@ bandit -r src/ -q                     # SAST Python
 | `docs/CONTAINERS_K8S_GUIA.md` | Containers, compose, Docker Hub e Kubernetes (pods, services, LoadBalancer, HPA) na prática |
 | `docs/K8S_FLUXO_DEV_CICD.md` | Alterar cada container → PR/CI → Docker Hub → aprovação → Argo CD → produção; rollback |
 | `docs/K8S_TESTE_DE_CARGA.md` | Simular grande demanda (k6) e ver o HPA escalar; testes de resiliência com resultados reais |
+| `docs/PAINEL_APRENDIZADO.md` | Painel de Aprendizado: telas de containers/Kubernetes, console SQL com 3 modos, segurança, Swagger atualizado |
 | `docs/SIMULANDO_2_DEVS.md` | Simular 2 devs na mesma máquina: pastas `~/devs/dev1` e `~/devs/dev2`, cada uma com seus containers e portas (`portas.env`) |
 | `docs/FABRICA_DE_SOFTWARE.md` | **Passo a passo didático do card à produção** (gerente, dev, revisor, aprovador): tela + CLI, containers de dev/produção, banco, tag, deploy e rollback |
