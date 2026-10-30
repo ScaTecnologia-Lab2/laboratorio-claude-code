@@ -174,7 +174,7 @@ Até o primeiro deploy, a aplicação `labsystem-producao` fica com o aviso `una
 1. GitHub → **Actions → Docker Build, Scan & Deploy → Run workflow**, branch `main`.
 2. Marque **"Publicar as 3 imagens no Docker Hub"** e **"Deploy em produção"** → *Run workflow*.
 3. O run faz build → scan → publish. O job **"Deploy em produção (requer aprovação)"** para em **Waiting**: um revisor do Environment `production` clica **Review deployments → production → Approve and deploy**.
-4. O job grava em `k8s/overlays/producao/kustomization.yaml` a tag `<sha>` e o seu usuário, e faz push na branch **`producao`**. O resumo do run mostra a versão gravada.
+4. O job grava em `k8s/overlays/producao/kustomization.yaml` a tag `<sha>` e o seu usuário, e acrescenta **um commit de deploy** na branch **`producao`** (push normal, sem `--force`). O resumo do run mostra a versão gravada.
 5. O Argo CD percebe em até ~3 minutos (ou clique **Refresh** no painel) e aplica. Os Deployments trocam os pods um a um (`maxUnavailable: 0`), sem tempo fora do ar.
 
 Acompanhe no terminal:
@@ -188,7 +188,14 @@ kubectl get application -n argocd labsystem-producao   # SYNC STATUS / HEALTH ST
 ### Por que GitOps (e não o GitHub rodando `kubectl`)?
 
 - O GitHub está na internet e o cluster está na sua máquina. O GitHub **não alcança** o cluster, e não deve: abrir o cluster para a internet, ou deixar a credencial dele num secret do GitHub, é um risco grande. No GitOps, **o cluster puxa** do Git.
-- **O Git é a verdade:** o que roda em produção é exatamente o que está na branch `producao`. `git log origin/producao` é o histórico de deploys (quem, quando, qual versão).
+- **O Git é a verdade:** o que roda em produção é exatamente o que está na ponta da branch `producao`. E a branch inteira é o **histórico de deploys**: cada deploy é um commit novo em cima do anterior, com dois pais — o deploy anterior e o commit da `main` que foi publicado:
+  ```
+  git fetch && git log --first-parent --oneline origin/producao
+  c3d4e5f deploy: produção na versão 0f3d3c7 (… disparado por ScaTecnologia)   ← exemplo: um rollback também vira um deploy
+  a1b2c3d deploy: produção na versão b6238f2 (… disparado por ScaTecnologia)
+  ```
+  `--first-parent` mostra só a fila de deploys; sem ele, o log também desce pelo histórico da `main`. Dois deploys ao mesmo tempo entram em fila (`concurrency`), e se um tentar gravar em cima de uma `producao` desatualizada o Git recusa o push — ninguém apaga o deploy de ninguém.
+  > Até 2026-10-30 o job usava `git push --force` e cada deploy substituía o anterior; por isso os deploys de antes disso (ex.: `0f3d3c7`) não aparecem como commits próprios na branch.
 - **Auto-correção (`selfHeal`):** se alguém alterar algo à mão no cluster, o Argo desfaz. Teste:
   ```bash
   kubectl delete service frontend -n labsystem     # "acidente"
@@ -204,7 +211,7 @@ kubectl get application -n argocd labsystem-producao   # SYNC STATUS / HEALTH ST
 | O sistema | http://localhost:8080 (banco novo: `admin@labsystem.com` / `admin123`) |
 | Painel do Argo CD | `sh scripts/k8s/painel-argocd.sh` → https://localhost:8443 (usuário `admin`; o certificado autoassinado gera aviso no navegador) |
 | Versão que está rodando | `kubectl get deploy -n labsystem -o jsonpath='{range .items[*]}{.metadata.name}: {.spec.template.spec.containers[0].image}{"\n"}{end}'` |
-| Histórico de deploys | `git fetch && git log --oneline origin/producao` · GitHub → aba **Actions** · Environments → **production** |
+| Histórico de deploys | `git fetch && git log --first-parent --oneline origin/producao` · GitHub → aba **Actions** · Environments → **production** · Argo CD → *History and rollback* |
 | Imagens publicadas | `https://hub.docker.com/u/<usuario>` |
 | Pods, nós, autoescala, CPU | `sh scripts/k8s/assistir.sh producao` |
 | Logs da produção | `kubectl logs -n labsystem -l app=backend --prefix --tail=50` |
@@ -218,7 +225,7 @@ kubectl get application -n argocd labsystem-producao   # SYNC STATUS / HEALTH ST
 
 | Situação | O que fazer |
 |---|---|
-| Versão nova com bug | GitHub → Actions → abra o **run do deploy anterior** (o que estava bom) → **Re-run all jobs**. Ele grava de volta a tag daquele commit (pedindo aprovação de novo) e o Argo aplica. |
+| Versão nova com bug | GitHub → Actions → abra o **run do deploy anterior** (o que estava bom) → **Re-run all jobs**. Ele grava um **novo** commit de deploy com a tag daquele commit (pedindo aprovação de novo) e o Argo aplica — o rollback fica registrado no histórico da `producao`. |
 | Pod novo não fica pronto | Nada a fazer na hora: com `maxUnavailable: 0`, os pods antigos **continuam atendendo** até os novos passarem na readiness. Investigue: `kubectl describe pod -n labsystem <pod>` e `kubectl logs ...` |
 | Imagem não baixa (`ImagePullBackOff`) | Confira a variável `DOCKERHUB_USERNAME` e se a tag existe no Docker Hub. |
 | Argo `OutOfSync` sem sincronizar | Painel → **Refresh** / **Sync**; veja a mensagem em *Conditions*. |
@@ -232,7 +239,7 @@ Desfazer pelo próprio Git também funciona (`git revert` na `producao`), mas o 
 - **Cada dev tem os próprios containers** (compose com portas próprias): ninguém derruba o ambiente do outro. Ver `docs/SIMULANDO_2_DEVS.md`.
 - **Cada card em uma branch, cada branch em um PR**: o CI testa cada mudança isolada; conflitos aparecem no PR, não em produção (exercício: `docs/EXERCICIO_MULTIPLOS_DEVS.md`).
 - **O cluster dev é compartilhado** neste laboratório (namespace `labsystem-dev`): o último `dev-deploy.sh` vence. Times maiores usam *preview environments* — um namespace temporário por PR, criado e destruído pela esteira.
-- **Produção só muda por esteira + aprovação**, independentemente de quantos devs existam. Dois deploys seguidos? O último gravado na `producao` é o que vale, e o histórico mostra os dois.
+- **Produção só muda por esteira + aprovação**, independentemente de quantos devs existam. Dois deploys seguidos? Entram em fila; o último gravado na `producao` é o que vale, e `git log --first-parent origin/producao` mostra os dois.
 
 ---
 

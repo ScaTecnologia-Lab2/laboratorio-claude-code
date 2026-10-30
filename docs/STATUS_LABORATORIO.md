@@ -101,6 +101,8 @@ Isto é o que falta para "levar o laboratório para valer" (itens riscados já f
     - **Configurar no GitHub:** variável `DOCKERHUB_USERNAME` e secret `DOCKERHUB_TOKEN` (Settings → Secrets and variables → Actions). Depois, o 1º deploy (Actions → Run workflow, publish + deploy, aprovar) cria a branch `producao` e o Argo CD sobe a produção em http://localhost:8080 — **ainda não testado de ponta a ponta** (o overlay de produção foi testado no cluster com imagens locais).
     - Os outros PRs abertos (#39, #40, #38, #43, #44, #46) aguardam aprovação; #39/#40/#38 precisam de *Update branch* depois do #42. O #40 também altera este arquivo — esperar conflito simples.
     - `.docx` de `docs/` regenerados nesta sessão (`sh docs/atualizar_docx.sh`), incluindo os 3 guias novos.
+21. ~~Primeiro deploy GitOps de ponta a ponta~~ — feito em 2026-10-30: PRs #42 (Trivy Python) e #47 (containers + Kubernetes) aprovados por sca-dev1 e mergeados; deploy `0f3d3c7` aprovado no Environment `production` criou a branch `producao` e o Argo CD assumiu a produção (:8080). Ciclo completo repetido com uma mudança real: PR #48 (subtítulo "V4" na landing) → deploy `b6238f2` → Argo CD sincronizou sozinho em ~4 min.
+22. ~~Histórico de deploys na branch `producao`~~ — o job `deploy-production` usava `git push --force` (cada deploy apagava o anterior). Agora cada deploy é um commit novo com dois pais (deploy anterior + commit da `main`), push normal e `concurrency`; `git log --first-parent origin/producao` lista os deploys. Testado localmente: deploy normal, rollback, primeiro deploy sem branch e dois deploys em paralelo (o segundo é recusado).
 
 ---
 
