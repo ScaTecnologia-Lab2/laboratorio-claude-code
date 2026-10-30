@@ -1,0 +1,31 @@
+# ============================================================================
+# ConfigMap e Secret — configuração FORA da imagem
+# ----------------------------------------------------------------------------
+# A mesma imagem roda em dev e em produção; o que muda é a configuração
+# injetada como variável de ambiente nos pods (envFrom nos Deployments).
+#
+# ConfigMap → valores comuns (não sensíveis).
+# Secret    → valores sensíveis. ATENÇÃO: aqui ele está no Git só porque é a
+#   senha de laboratório que já é pública no projeto (CLAUDE.md). Em produção
+#   real o Secret NUNCA vai para o Git: usa-se Sealed Secrets, External
+#   Secrets (cofre da nuvem) ou é criado à mão com `kubectl create secret`.
+# ============================================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: labsystem-config
+data:
+  DB_HOST: postgres            # nome do Service do banco (DNS interno)
+  DB_PORT: "5432"
+  FORNECEDORES_HOST: fornecedores
+  FORNECEDORES_PORT: "3001"
+  FLASK_HOST: 0.0.0.0
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: labsystem-db
+type: Opaque
+stringData:
+  DB_PASSWORD: "5151"          # lido pelo backend e pelo fornecedores
+  POSTGRES_PASSWORD: "5151"    # lido pela imagem oficial do Postgres

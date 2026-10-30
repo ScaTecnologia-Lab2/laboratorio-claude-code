@@ -5,7 +5,8 @@
 ## Stack
 - Node.js 24 LTS (CommonJS) — sem frameworks, apenas módulos nativos
 - Python 3.13 + Flask — backend do CRUD de Fornecedores (porta 3001)
-- Docker Compose — Postgres + Node + Python (`docker compose up --build -d`)
+- Docker Compose — 4 containers: frontend (nginx) + backend (Node) + fornecedores (Python) + Postgres (`docker compose up --build -d`)
+- Kubernetes local — k3d + kubectl (`~/.local/bin`), manifestos Kustomize em `k8s/`, GitOps com Argo CD; imagens no Docker Hub
 - JavaScript puro no frontend (HTML + CSS + Fetch API)
 - PostgreSQL — `localhost:5151` — banco `laboratorio`
 - Driver Node: `pg` (node-postgres)
@@ -20,9 +21,16 @@ npm install
 # Instalar dependências Python
 pip install -r requirements.txt
 
-# Subir tudo com Docker (Postgres + Node + API Python) — alternativa aos 2 comandos abaixo
+# Subir tudo com Docker (frontend + backend + API Python + Postgres) — alternativa aos 2 comandos abaixo
 docker compose up --build -d
+DOCKERHUB_USUARIO=<usuario> docker compose -f docker-compose.hub.yml up -d   # mesmos 4, imagens do Docker Hub (sem build)
 docker compose down            # derruba (dados do Postgres ficam no volume)
+
+# Kubernetes local (pare o compose antes — RAM)
+sh scripts/k8s/criar-cluster.sh       # cluster k3d "labsystem" (1 servidor + 2 agentes)
+sh scripts/k8s/dev-deploy.sh [svc]    # build + import + apply no namespace labsystem-dev (:8081)
+sh scripts/k8s/teste-carga.sh dev 60 4   # k6 em container; ver HPA escalando
+sh scripts/k8s/destruir-cluster.sh    # para o cluster ("tudo" = apaga)
 
 # Iniciar o servidor Node.js (porta 3000)
 node src/server.js
@@ -32,12 +40,12 @@ python src/fornecedores_api.py
 
 # Rodar testes
 node src/soma.test.js
-node src/usuarios.test.js   # requer banco PostgreSQL ativo
+node src/usuarios.test.js   # requer PostgreSQL — faz TRUNCATE em usuarios: use um Postgres descartável, NUNCA o da 5151
 
 # Lint e testes usados pela esteira de CI/CD (GitHub Actions)
 npm run lint                # ESLint (Node)
 npm run test:unit           # sem dependências externas (soma + mongo em memória)
-npm run test:integration    # requer PostgreSQL ativo (usuarios + redis)
+npm run test:integration    # requer PostgreSQL DESCARTÁVEL (TRUNCATE em usuarios) — ex.: DB_PORT=5199
 flake8 src/ tests/ --config=.flake8   # lint Python
 pytest tests/ -v                      # testes Python (validar_cnpj)
 bandit -r src/ -q                     # SAST Python
@@ -46,9 +54,10 @@ bandit -r src/ -q                     # SAST Python
 ## CI/CD
 
 - Pipeline ativo: `.github/workflows/ci.yml` (lint, testes unitários/integração, scan de segurança) — roda em todo push e PR.
-- Pipeline Docker: `.github/workflows/docker-build.yml` — build + scan (Trivy, `ignore-unfixed`) rodam **automaticamente** em push/PR na `main`; publish no GHCR e deploy em produção rodam **só manualmente** (`workflow_dispatch`, deploy exige aprovação humana no GitHub Environment `production`). O hook `pipeline-guardrail.js` bloqueia qualquer edição que deixe publish/deploy automáticos.
-- Docker **ativo** nesta máquina (Linux): `docker compose up --build -d` sobe Postgres (5151, só localhost) + Node (3000) + API Python (3001, só localhost). Host/porta vêm de variáveis de ambiente (`DB_HOST`, `DB_PORT`, `FORNECEDORES_HOST`, `FORNECEDORES_PORT`, `FLASK_HOST`) com padrão `localhost`, então rodar sem Docker continua funcionando igual. Não rode Postgres local na 5151 e o compose ao mesmo tempo.
+- Pipeline Docker: `.github/workflows/docker-build.yml` — build + scan (Trivy, `ignore-unfixed`) rodam **automaticamente** em push/PR na `main`; publish no Docker Hub e deploy em produção rodam **só manualmente** (`workflow_dispatch`, deploy exige aprovação humana no GitHub Environment `production`). O hook `pipeline-guardrail.js` bloqueia qualquer edição que deixe publish/deploy automáticos.
+- Docker **ativo** nesta máquina (Linux): `docker compose up --build -d` sobe frontend nginx (3000) → backend Node (3002, só localhost) → API Python (3001, só localhost) + Postgres (5151, só localhost). Host/porta vêm de variáveis de ambiente (`DB_HOST`, `DB_PORT`, `FORNECEDORES_HOST`, `FORNECEDORES_PORT`, `FLASK_HOST`) com padrão `localhost`, então rodar sem Docker continua funcionando igual. Não rode Postgres local na 5151 e o compose ao mesmo tempo.
 - Teoria e passo a passo completos: `docs/DEVOPS_GUIA.md` e `docs/ROTEIRO_CICD_CLAUDE_CODE.md`.
+- **Kubernetes/GitOps:** publish envia as 3 imagens ao **Docker Hub** (`vars.DOCKERHUB_USERNAME` + `secrets.DOCKERHUB_TOKEN`); deploy-production (com aprovação) grava a tag na branch **`producao`**, que o **Argo CD** aplica no namespace `labsystem` (:8080). O GitHub nunca acessa o cluster. Cada deploy é um commit novo na `producao` (sem `--force`): `git fetch && git log --first-parent --oneline origin/producao` lista os deploys. Guias: `docs/CONTAINERS_K8S_GUIA.md`, `docs/K8S_FLUXO_DEV_CICD.md`, `docs/K8S_TESTE_DE_CARGA.md`.
 
 ## Trabalho em equipe (vários devs no mesmo repositório)
 
@@ -69,6 +78,10 @@ bandit -r src/ -q                     # SAST Python
 | `http://localhost:3000/usuarios.html` | CRUD Usuários (Admin) |
 | `http://localhost:3000/api-docs` | Swagger UI |
 | `http://localhost:3001/fornecedores` | API Python direta (não usar no browser — sem auth) |
+| `http://localhost:3002/health` | Backend Node direto, sem o nginx (compose) |
+| `http://localhost:8081` | Kubernetes — ambiente dev (`labsystem-dev`); login `admin@labsystem.com` / `admin123` |
+| `http://localhost:8080` | Kubernetes — produção (`labsystem`, via Argo CD) |
+| `https://localhost:8443` | Painel do Argo CD (`sh scripts/k8s/painel-argocd.sh`) |
 
 ## Regras
 - Antes de alterar código, explique o plano.
@@ -121,5 +134,8 @@ bandit -r src/ -q                     # SAST Python
 | `docs/COLABORACAO_EQUIPE.md` | Como vários devs trabalham no mesmo repo sem se atropelar: branches, PRs, CODEOWNERS, conflitos |
 | `docs/EXERCICIO_MULTIPLOS_DEVS.md` | Exercício prático (comandos reais) simulando 2 devs e um conflito de merge, do início ao fim |
 | `docs/BACKLOG_KANBAN.md` | Como configurar e usar o board Kanban (GitHub Projects) para o backlog de tarefas |
+| `docs/CONTAINERS_K8S_GUIA.md` | Containers, compose, Docker Hub e Kubernetes (pods, services, LoadBalancer, HPA) na prática |
+| `docs/K8S_FLUXO_DEV_CICD.md` | Alterar cada container → PR/CI → Docker Hub → aprovação → Argo CD → produção; rollback |
+| `docs/K8S_TESTE_DE_CARGA.md` | Simular grande demanda (k6) e ver o HPA escalar; testes de resiliência com resultados reais |
 | `docs/SIMULANDO_2_DEVS.md` | Simular 2 devs na mesma máquina: pastas `~/devs/dev1` e `~/devs/dev2`, cada uma com seus containers e portas (`portas.env`) |
 | `docs/FABRICA_DE_SOFTWARE.md` | **Passo a passo didático do card à produção** (gerente, dev, revisor, aprovador): tela + CLI, containers de dev/produção, banco, tag, deploy e rollback |

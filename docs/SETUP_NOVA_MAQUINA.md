@@ -28,7 +28,8 @@ Os materiais de curso (`.pptx`, `.zip`, `Aula3_*` etc.) **não estão no Git** (
 | Python | 3.13.x | `python3 --version` |
 | Git | qualquer recente | `git --version` |
 | PostgreSQL | rodando em `localhost:5151`, banco `laboratorio`, usuário `postgres`, senha `5151` | ver seção 4 |
-| Docker + Compose | recomendado — sobe Postgres + Node + Python com um comando (ver seção 6). Seu usuário precisa estar no grupo `docker` | `docker --version`, `docker compose version` |
+| Docker + Compose | recomendado — sobe frontend (nginx) + backend (Node) + API Python + Postgres com um comando (ver seção 6). Seu usuário precisa estar no grupo `docker` | `docker --version`, `docker compose version` |
+| kubectl + k3d | opcional — só para a parte de Kubernetes (`docs/CONTAINERS_K8S_GUIA.md`). Sem sudo: binários oficiais para `~/.local/bin`, conferindo o checksum: kubectl de `https://dl.k8s.io/release/<versão>/bin/linux/amd64/kubectl` (+ `.sha256`), k3d de `github.com/k3d-io/k3d/releases` (`k3d-linux-amd64` + `checksums.txt`). Validado: kubectl v1.37.2, k3d v5.9.0 (k3s v1.35.5) | `kubectl version --client`, `k3d version` |
 | GitHub CLI (`gh`) | recomendado — usado para rulesets, board, PRs. Sem sudo: baixar o binário oficial de github.com/cli/cli/releases (conferindo o checksum) para `~/.local/bin` | `gh --version` |
 
 Não é obrigatório ter exatamente essas versões — o projeto não usa recursos exóticos — mas são as versões validadas nesta sessão.
@@ -84,7 +85,7 @@ Se algum desses falhar de um jeito diferente do documentado em `docs/STATUS_LABO
 **Com Docker** (tudo de uma vez):
 
 ```bash
-docker compose up --build -d       # postgres (5151), node (3000), fornecedores (3001)
+docker compose up --build -d       # postgres (5151), frontend (3000), backend (3002), fornecedores (3001)
 docker compose down                # derrubar
 ```
 
@@ -96,6 +97,15 @@ python src/fornecedores_api.py     # terminal 2 — porta 3001
 ```
 
 Não rode as duas formas ao mesmo tempo — elas disputam as portas 3000, 3001 e 5151.
+
+**Kubernetes local** (opcional; ~1,8 GB de RAM com o Argo CD — pare o compose antes):
+
+```bash
+sh scripts/k8s/criar-cluster.sh    # cluster k3d "labsystem" (portas 8080 e 8081)
+sh scripts/k8s/dev-deploy.sh       # ambiente dev em http://localhost:8081
+```
+
+Passo a passo completo: `docs/CONTAINERS_K8S_GUIA.md`.
 
 URLs em `CLAUDE.md`.
 

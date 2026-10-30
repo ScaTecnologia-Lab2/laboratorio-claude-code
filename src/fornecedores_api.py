@@ -1,8 +1,12 @@
+from contextlib import contextmanager
 from flask import Flask, request, jsonify
 import os
 import psycopg2
 import psycopg2.extras
+import psycopg2.pool
 import re
+import socket
+import threading
 
 app = Flask(__name__)
 
@@ -12,14 +16,38 @@ DB = {
     'port':     int(os.environ.get('DB_PORT', '5151')),
     'database': 'laboratorio',
     'user':     'postgres',
-    'password': '5151',  # nosec B105: credencial de laboratório local, não de produção (ver CLAUDE.md)
+    # No Kubernetes vem de um Secret (DB_PASSWORD); o padrão é o de desenvolvimento.
+    'password': os.environ.get('DB_PASSWORD', '5151'),
 }
 
 CAMPOS = ['nomefantasia', 'nomeempresa', 'endereco', 'bairro', 'cidade', 'estado', 'email', 'telefone', 'cnpj']
 
 
+# Pool de conexões: reaproveita até 10 conexões abertas em vez de abrir uma
+# nova (DNS + handshake + login) a cada requisição — mesmo padrão do pg.Pool
+# do Node. Sem ele, o teste de carga no Kubernetes derrubava esta API.
+MAX_CONEXOES = 10
+_pool = None
+_pool_lock = threading.Lock()
+# Com mais de MAX_CONEXOES requisições simultâneas, as excedentes ESPERAM
+# uma conexão livre (em vez de o pool falhar com "pool exhausted").
+_vagas = threading.BoundedSemaphore(MAX_CONEXOES)
+
+
+@contextmanager
 def get_conn():
-    return psycopg2.connect(**DB)
+    global _pool
+    with _pool_lock:
+        if _pool is None:
+            _pool = psycopg2.pool.ThreadedConnectionPool(1, MAX_CONEXOES, **DB)
+    with _vagas:
+        conn = _pool.getconn()
+        try:
+            with conn:  # commit no sucesso, rollback em exceção
+                yield conn
+        finally:
+            # Conexão quebrada (ex.: banco reiniciou) é descartada, não reaproveitada.
+            _pool.putconn(conn, close=bool(conn.closed))
 
 
 def validar_cnpj(cnpj):
@@ -54,6 +82,12 @@ def init_db():
             """)
         conn.commit()
     print('Tabela fornecedores verificada/criada.')
+
+
+@app.route('/health', methods=['GET'])
+def health():
+    # Usada pelo Docker/Kubernetes para saber se o processo está vivo.
+    return jsonify({'status': 'ok', 'servido_por': socket.gethostname()})
 
 
 @app.route('/fornecedores', methods=['GET'])

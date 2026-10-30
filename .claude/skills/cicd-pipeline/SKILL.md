@@ -7,7 +7,7 @@ description: Use esta skill ao criar ou alterar qualquer arquivo de pipeline (.g
 
 Aplica-se sempre que a tarefa envolver:
 - Criar ou editar workflows em `.github/workflows/`
-- Criar ou editar `Dockerfile`, `Dockerfile.python` ou `docker-compose.yml`
+- Criar ou editar `Dockerfile`, `Dockerfile.python`, `Dockerfile.frontend`, `docker-compose.yml`, `docker-compose.hub.yml` ou os manifestos em `k8s/`
 - Adicionar/alterar lint (`eslint.config.js`, `.flake8`) ou scripts de teste usados pela esteira
 - Configurar segurança de pipeline (secrets, scans, Dependabot, CodeQL)
 
@@ -19,7 +19,7 @@ Referência conceitual completa: `docs/DEVOPS_GUIA.md` e `docs/ROTEIRO_CICD_CLAU
 
 1. **Jobs separados, não um job monolítico.** Lint, teste unitário, teste de integração e segurança são jobs distintos em `ci.yml`, para falhar rápido e mostrar claramente o que quebrou.
 2. **Testes de integração no CI usam `services:` do GitHub Actions.** Os containers de `postgres`/`redis`/`mongo` no CI são infraestrutura do runner do GitHub; localmente, o `docker-compose.yml` sobe o mesmo Postgres na porta 5151.
-3. **Em workflows Docker, só build e scan são automáticos.** `docker-build.yml` roda build + scan Trivy em push/PR na `main`; os jobs `publish*` e `deploy*` devem ter `if:` com `github.event_name == 'workflow_dispatch'` (disparo manual). O hook `pipeline-guardrail.js` bloqueia edições que removam essa trava. Não enfraqueça o scan (ex.: tirar `exit-code: "1"`) para fazer o pipeline passar — corrija a imagem.
+3. **Em workflows Docker, só build e scan são automáticos.** `docker-build.yml` roda build + scan Trivy em push/PR na `main`; os jobs `publish*` e `deploy*` devem ter `if:` com `github.event_name == 'workflow_dispatch'` (disparo manual). O hook `pipeline-guardrail.js` bloqueia edições que removam essa trava. O deploy é GitOps: `deploy-production` só grava a tag na branch `producao` (Argo CD aplica no cluster) — nunca dê ao GitHub credencial do cluster nem use runner self-hosted (repositório público). Não renomeie os jobs `Build imagem Node`/`...Python` e os scans: são checks obrigatórios do ruleset. Não enfraqueça o scan (ex.: tirar `exit-code: "1"`) para fazer o pipeline passar — corrija a imagem.
 4. **Nunca hardcode segredos em YAML.** Use `${{ secrets.NOME_DO_SECRET }}`. Se um novo secret for necessário, explique ao usuário como criá-lo em `Settings → Secrets and variables → Actions` — não peça para colar o valor no chat.
 5. **SQL sempre parametrizado, mesmo em scripts auxiliares de CI** (ex.: scripts de seed de banco para testes) — mesma regra do `CLAUDE.md` do projeto.
 6. **Antes de alterar um workflow, explique o plano e o diff esperado**, seguindo a regra geral do `CLAUDE.md`.
