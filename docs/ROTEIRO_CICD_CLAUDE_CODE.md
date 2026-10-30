@@ -151,15 +151,15 @@ Isso reforça, em nível de plataforma, o que o hook `security-guardrail.js` já
 |---|---|
 | `Dockerfile` | Imagem do serviço Node (`src/server.js`), multi-stage, usuário não-root, **sem npm no runtime** |
 | `Dockerfile.python` | Imagem da API Python (`src/fornecedores_api.py`), usuário não-root, **sem pip/setuptools/wheel no runtime** |
-| `docker-compose.yml` | Orquestra Postgres + Node + Python localmente (Redis/Mongo são adaptadores em memória, não precisam de serviço) |
+| `docker-compose.yml` | Orquestra frontend (nginx) + backend (Node) + Python + Postgres localmente (Redis/Mongo são adaptadores em memória, não precisam de serviço) |
 | `.github/workflows/docker-build.yml` | Build → scan → publish → deploy |
 
 ### 7.1 Rodando localmente
 
 ```bash
-docker compose up --build -d     # sobe postgres (5151), node (3000) e fornecedores (3001)
+docker compose up --build -d     # sobe postgres (5151), frontend (3000), backend (3002) e fornecedores (3001)
 docker compose ps                # os 3 devem estar "Up"
-docker compose logs -f node      # logs
+docker compose logs -f backend      # logs
 docker compose down              # derruba (dados do Postgres ficam no volume)
 ```
 
@@ -173,15 +173,15 @@ Três ajustes foram necessários para o compose funcionar (e valem para qualquer
 
 | Evento | O que roda |
 |---|---|
-| `push` / `pull_request` na `main` | **Automático:** build das 2 imagens + scan Trivy |
-| `workflow_dispatch` (aba Actions → Run workflow) | Build + scan e, se marcado nos inputs, publish no GHCR e/ou deploy |
+| `push` / `pull_request` na `main` | **Automático:** build das 3 imagens (backend, fornecedores, frontend — desde 2026-10-29) + scan Trivy |
+| `workflow_dispatch` (aba Actions → Run workflow) | Build + scan e, se marcado nos inputs, publish no Docker Hub e/ou deploy |
 
 Jobs, na ordem em que dados fluem entre eles (`needs:`):
 
 1. **`build-node` / `build-python`** — constrói as imagens e as salva como artifact do workflow.
 2. **`scan-node` / `scan-python`** — **Trivy** (`aquasecurity/trivy-action`, **fixada pelo SHA do commit**, não pela tag) procura vulnerabilidades `CRITICAL`/`HIGH` **com correção disponível** (`ignore-unfixed: true`). Se achar, o job falha e nada depois dele roda. Os dois scans são **checks obrigatórios** da `main` (Passo 2).
-3. **`publish`** (opcional) — publica no `ghcr.io`. Só com disparo manual e `push_image: true`.
-4. **`deploy-production`** (opcional) — só com disparo manual, `deploy_production: true` **e** aprovação humana no GitHub Environment `production` (Required reviewers). Os comandos de deploy são placeholder (`echo`) — não há servidor de produção real neste laboratório.
+3. **`publish`** (opcional) — publica no **Docker Hub** (`<usuario>/labsystem-<serviço>:<sha>`; até 2026-10-29 era o `ghcr.io`). Só com disparo manual e `push_image: true`.
+4. **`deploy-production`** (opcional) — só com disparo manual, `deploy_production: true` **e** aprovação humana no GitHub Environment `production` (Required reviewers). Desde 2026-10-29 o deploy é **GitOps de verdade**: grava a nova tag em `k8s/overlays/producao` na branch `producao`, e o Argo CD aplica no cluster Kubernetes local — ver `docs/K8S_FLUXO_DEV_CICD.md`.
 
 **Regra de ouro:** build e scan podem ser automáticos; **publicar e fazer deploy, nunca**. Os jobs `publish` e `deploy-production` têm `if: github.event_name == 'workflow_dispatch' && ...`, e o hook `.claude/hooks/pipeline-guardrail.js` bloqueia qualquer edição do Claude Code que remova essa trava.
 
@@ -199,7 +199,7 @@ Jobs, na ordem em que dados fluem entre eles (`needs:`):
 ### Prompt sugerido para essa etapa
 
 ```
-Rode `docker compose up --build -d`, confirme que os 3 serviços sobem e que
+Rode `docker compose up --build -d`, confirme que os 4 serviços sobem e que
 login, clientes e fornecedores funcionam em http://localhost:3000. Depois rode
 o mesmo scan Trivy do CI nas duas imagens e, se algo falhar, explique a causa
 antes de corrigir — sem afrouxar o scan.

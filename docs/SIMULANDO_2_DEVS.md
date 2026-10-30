@@ -33,6 +33,7 @@ Pasta do Dev 1 (branch dele)            Pasta do Dev 2 (branch dele)
 | Autor dos commits | `Dev 1` (ligado ao perfil sca-dev1) | `Dev 2` (ligado ao perfil sca-dev2) | `alexaugusto2` |
 | Sistema (navegador) | http://localhost:3010 | http://localhost:3020 | http://localhost:3000 |
 | API Python (só local) | 3011 | 3021 | 3001 |
+| Backend Node direto (só local) | 3012 | 3022 | 3002 |
 | Postgres (só local) | 5161 | 5162 | 5151 |
 | Nome dos containers | `dev1-...` | `dev2-...` | `laboratorio-claude-code-...` |
 
@@ -65,7 +66,7 @@ cd ~/devs/dev1/laboratorio-claude-code      # agora você é o Dev 1
 |---|---|
 | Subir o sistema com o código atual da pasta | `docker compose --env-file portas.env up --build -d` |
 | Ver se está rodando | `docker compose --env-file portas.env ps` |
-| Ver os logs do app (Ctrl+C sai) | `docker compose --env-file portas.env logs -f node` |
+| Ver os logs do app (Ctrl+C sai) | `docker compose --env-file portas.env logs -f backend` |
 | Parar (os dados do banco ficam guardados) | `docker compose --env-file portas.env down` |
 | Parar e **apagar o banco** deste dev | `docker compose --env-file portas.env down -v` |
 | Ver **todos** os containers da máquina | `docker ps` |
@@ -143,7 +144,7 @@ for n in 1 2; do
   cd laboratorio-claude-code
   git config user.name "Dev $n"
   git config user.email "dev$n@example.invalid"
-  printf 'COMPOSE_PROJECT_NAME=dev%s\nAPP_PORT=30%s0\nAPI_PY_PORT=30%s1\nPG_PORT=516%s\n' $n $n $n $n > portas.env
+  printf 'COMPOSE_PROJECT_NAME=dev%s\nAPP_PORT=30%s0\nAPI_PY_PORT=30%s1\nBACKEND_PORT=30%s2\nPG_PORT=516%s\n' $n $n $n $n $n > portas.env
 done
 ```
 

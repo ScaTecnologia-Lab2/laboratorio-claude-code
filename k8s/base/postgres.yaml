@@ -1,0 +1,73 @@
+# ============================================================================
+# Postgres — StatefulSet (o único componente COM ESTADO)
+# ----------------------------------------------------------------------------
+# Por que StatefulSet e não Deployment?
+#   - Cada pod tem nome fixo (postgres-0) e um disco próprio (PVC) que
+#     sobrevive a reinícios: se o pod morrer, o novo postgres-0 reencontra
+#     o MESMO disco com os mesmos dados.
+#   - Deployments tratam pods como descartáveis e intercambiáveis — ótimo
+#     para backend/frontend, péssimo para um banco.
+# replicas: 1 → banco NÃO escala horizontalmente com um simples "replicas: 3"
+# (exigiria replicação do Postgres: primário + réplicas, ex. operador
+# CloudNativePG). Escalar o banco é outro assunto; aqui escalamos a aplicação.
+# ============================================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  labels: { app: postgres }
+spec:
+  clusterIP: None              # "headless": DNS aponta direto para o pod
+  selector: { app: postgres }
+  ports:
+    - name: postgres
+      port: 5432
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  labels: { app: postgres }
+spec:
+  serviceName: postgres
+  replicas: 1
+  selector:
+    matchLabels: { app: postgres }
+  template:
+    metadata:
+      labels: { app: postgres }
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_USER
+              value: postgres
+            - name: POSTGRES_DB
+              value: laboratorio
+            - name: PGDATA       # subpasta: o volume pode vir com arquivos de sistema
+              value: /var/lib/postgresql/data/pgdata
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef: { name: labsystem-db, key: POSTGRES_PASSWORD }
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "postgres"]
+            periodSeconds: 5
+          resources:
+            requests: { cpu: 100m, memory: 128Mi }
+            limits:   { cpu: 500m, memory: 512Mi }
+          volumeMounts:
+            - name: dados
+              mountPath: /var/lib/postgresql/data
+  # Cria um PersistentVolumeClaim (pedido de disco) por pod do StatefulSet.
+  volumeClaimTemplates:
+    - metadata:
+        name: dados
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 1Gi

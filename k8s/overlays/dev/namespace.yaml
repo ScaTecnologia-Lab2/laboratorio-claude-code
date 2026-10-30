@@ -1,0 +1,6 @@
+# Namespace = "pasta" isolada dentro do cluster. dev e produção convivem no
+# mesmo cluster sem enxergar os objetos um do outro pelo nome.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: labsystem-dev
