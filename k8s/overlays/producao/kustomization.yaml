@@ -21,11 +21,11 @@ resources:
   - ../../base
 images:
   - name: labsystem-backend
-    newName: docker.io/SEU_USUARIO_DOCKERHUB/labsystem-backend
-    newTag: latest
+    newName: docker.io/alexaugusto2/labsystem-backend
+    newTag: "b6238f2ff31d9a9dbe6a8318ecd8baedd3635b6e"
   - name: labsystem-fornecedores
-    newName: docker.io/SEU_USUARIO_DOCKERHUB/labsystem-fornecedores
-    newTag: latest
+    newName: docker.io/alexaugusto2/labsystem-fornecedores
+    newTag: "b6238f2ff31d9a9dbe6a8318ecd8baedd3635b6e"
   - name: labsystem-frontend
-    newName: docker.io/SEU_USUARIO_DOCKERHUB/labsystem-frontend
-    newTag: latest
+    newName: docker.io/alexaugusto2/labsystem-frontend
+    newTag: "b6238f2ff31d9a9dbe6a8318ecd8baedd3635b6e"
