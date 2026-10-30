@@ -6,7 +6,9 @@ Documento de arquitetura do **LabSystem** — decisões estruturais, camadas, fl
 
 ## Visão geral
 
-O LabSystem é uma aplicação com **dois servidores backend**: um servidor Node.js (porta 3000) que centraliza autenticação, roteamento e os CRUDs de Usuários e Clientes, e um serviço Python Flask (porta 3001) responsável exclusivamente pelo CRUD de Fornecedores. O Node.js atua como **gateway**: valida a sessão e faz proxy das requisições de `/fornecedores/*` para o Python.
+O LabSystem é uma aplicação com **dois servidores backend**: um servidor Node.js (porta 3000) que centraliza autenticação, roteamento e os CRUDs de Usuários, Clientes e demais recursos (produtos, estoque, carrinho, avaliações, eventos, relatório), e um serviço Python Flask (porta 3001) responsável exclusivamente pelo CRUD de Fornecedores. O Node.js atua como **gateway**: valida a sessão e faz proxy das requisições de `/fornecedores/*` para o Python.
+
+> **Em containers/Kubernetes** (desde 2026-10-29) há uma camada na frente: um **nginx** (`frontend`) entrega as páginas de `src/public/` e repassa as rotas da API ao backend Node. O diagrama abaixo mostra o backend; a seção "Execução em containers" mostra o conjunto. Rodando sem Docker, o Node continua servindo as páginas sozinho na porta 3000.
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -152,7 +154,7 @@ Requisição HTTP
 
 **Responsabilidades:**
 - Criar a tabela `fornecedores` na inicialização
-- Expor 5 endpoints REST
+- Expor 5 endpoints REST e `GET /health` (probes)
 - Conectar-se diretamente ao PostgreSQL via `psycopg2`
 - Retornar JSON em todas as respostas
 
@@ -402,7 +404,7 @@ As tabelas não têm relacionamento entre si. Expansões futuras (ex: fornecedor
 ### Pool de conexões
 
 - **Node.js:** `db.js` exporta um único `Pool` do `pg`. Padrão de 10 conexões simultâneas.
-- **Python:** cada função abre e fecha uma conexão via `psycopg2.connect()`. Para produção, usar `psycopg2.pool.ThreadedConnectionPool`.
+- **Python:** `ThreadedConnectionPool` do psycopg2 (até 10 conexões, com semáforo para as requisições excedentes esperarem). Antes cada requisição abria uma conexão e o teste de carga mostrou ~3% de erros (`docs/K8S_TESTE_DE_CARGA.md`).
 
 ---
 
@@ -423,7 +425,10 @@ As sessões são armazenadas na tabela `sessoes` do PostgreSQL (`src/sessoes.js`
 docker compose up --build -d
 ┌──────────────────────── rede interna do compose ────────────────────────┐
 │                                                                         │
-│  node  (Dockerfile, Node 24)            fornecedores (Dockerfile.python)│
+│  frontend (Dockerfile.frontend, nginx, :8080 no container)              │
+│     │  páginas de src/public + proxy das rotas da API                   │
+│     ▼                                                                   │
+│  backend (Dockerfile, Node 24)          fornecedores (Dockerfile.python)│
 │  DB_HOST=postgres  ────────────┐        DB_HOST=postgres  ──────┐       │
 │  FORNECEDORES_HOST=fornecedores ──────▶ FLASK_HOST=0.0.0.0      │       │
 │         │                      │                                │       │
@@ -431,12 +436,15 @@ docker compose up --build -d
 │         │                 postgres (postgres:16-alpine, volume persistente)
 └─────────┼───────────────────────────────────────────────────────────────┘
           │ publicado no computador:
-          ├── ${APP_PORT:-3000}          → navegador (única porta aberta na rede)
-          ├── 127.0.0.1:${API_PY_PORT:-3001} → só depuração local
-          └── 127.0.0.1:${PG_PORT:-5151}     → só ferramentas locais
+          ├── ${APP_PORT:-3000}              → navegador (frontend/nginx)
+          ├── 127.0.0.1:${BACKEND_PORT:-3002} → backend direto, só depuração
+          ├── 127.0.0.1:${API_PY_PORT:-3001}  → só depuração local
+          └── 127.0.0.1:${PG_PORT:-5151}      → só ferramentas locais
 ```
 
-- Dentro da rede do compose os serviços se acham **pelo nome** (`postgres`, `fornecedores`); por isso o código lê host/porta de variáveis de ambiente, com padrão `localhost` para rodar sem Docker.
+- O nginx resolve o nome do backend **em tempo de execução** (template com `resolver`): se o backend for recriado e mudar de IP, o nginx acompanha (antes guardava o IP e devolvia 502).
+- `docker-compose.hub.yml` sobe os mesmos 4 serviços com as imagens publicadas no Docker Hub, sem `build:`.
+- Dentro da rede do compose os serviços se acham **pelo nome** (`postgres`, `backend`, `fornecedores`); por isso o código lê host/porta de variáveis de ambiente, com padrão `localhost` para rodar sem Docker.
 - `COMPOSE_PROJECT_NAME` + portas diferentes permitem várias cópias isoladas (containers e bancos próprios) na mesma máquina — `docs/SIMULANDO_2_DEVS.md`.
 - Redis e MongoDB não têm container: são adaptadores em memória dentro do processo Node.
 
@@ -457,6 +465,8 @@ push / PR ─▶ ci.yml:  Lint (ESLint) ─▶ Testes unitários (Node) ─▶ T
 ```
 
 **Containers e Kubernetes (2026-10-29):** o sistema roda em 4 containers — `frontend` (nginx: páginas + reverse proxy) → `backend` (Node) → `fornecedores` (Python) + `postgres`. No Kubernetes (k3d, 3 nós), cada serviço stateless é um Deployment com ≥2 pods, probes, HPA por CPU e PodDisruptionBudget; o Postgres é um StatefulSet com volume; o frontend é exposto por um Service LoadBalancer. Detalhes: `docs/CONTAINERS_K8S_GUIA.md`.
+
+**GitOps e histórico de deploys:** o deploy não acessa o cluster — grava a tag da imagem em `k8s/overlays/producao/kustomization.yaml` e acrescenta um commit na branch `producao` (um commit por deploy, com dois pais: o deploy anterior e o commit da `main`, sem `--force`). O Argo CD, dentro do cluster, puxa essa branch e aplica. `git log --first-parent origin/producao` lista os deploys; rollback = *Re-run* do deploy anterior (grava um commit novo). Fluxo completo: `docs/K8S_FLUXO_DEV_CICD.md`.
 
 Detalhes e decisões: `docs/ROTEIRO_CICD_CLAUDE_CODE.md`. Fluxo de equipe: `docs/COLABORACAO_EQUIPE.md`.
 
@@ -486,6 +496,9 @@ O projeto possui skills registradas em `.claude/skills/` que governam como o Cla
 | `context-recovery` | Nova sessão / contexto perdido | Lê documentos na ordem certa, verifica git e arquivos reais antes de qualquer ação |
 | `frontend-layout-system` | Criar ou alterar HTML/CSS/JS | Impõe padrão visual: cores, layout, componentes, acessibilidade, responsividade |
 | `criar-funcao-com-teste` | Criar função JavaScript nova | Garante que a função venha acompanhada de teste simples |
+| `cicd-pipeline` | Criar/alterar workflows, Dockerfile, compose, lint/testes de CI | Mantém jobs separados, publish/deploy só manuais e sem segredos hardcoded |
+
+Agentes (`.claude/agents/`): `code-reviewer` (qualidade de JS) e `devops-engineer` (propõe pipelines/infra, não aplica sozinho). Hooks (`.claude/hooks/`): `security-guardrail.js` (bloqueia `.env` e SQL interpolado) e `pipeline-guardrail.js` (impede publish/deploy automáticos).
 
 ---
 
@@ -493,8 +506,8 @@ O projeto possui skills registradas em `.claude/skills/` que governam como o Cla
 
 | Item | Impacto | Solução sugerida |
 |------|---------|------------------|
-| Pool Python sem reuso | Uma conexão por request | `ThreadedConnectionPool` do psycopg2 |
 | `usuarios.test.js` desatualizado | Testes não cobrem senha/role | Reescrever para a versão atual |
+| Sem HTTPS | Tráfego e cookie em HTTP simples | TLS no Ingress/LoadBalancer antes de uma produção real |
 | Flask com servidor de desenvolvimento | Não indicado para produção real | Servir com gunicorn na imagem Python |
 | `clientes.html` não pagina | Mostra no máximo 100 clientes (limite padrão de `listar()`) | Paginação no frontend usando `?limit`/`?offset` |
 
