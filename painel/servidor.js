@@ -444,6 +444,9 @@ const server = http.createServer(async (req, res) => {
 
   if (req.method !== 'GET') return responder(res, 405, { erro: 'Método não permitido' });
 
+  // O navegador sempre pede o ícone; sem resposta ele registraria um 404 no console.
+  if (url.pathname === '/favicon.ico') { res.writeHead(204); return res.end(); }
+
   // O visual é o mesmo do LabSystem: reaproveitamos o CSS do app em vez de copiá-lo.
   if (url.pathname === '/css/styles.css') return servirArquivo(res, CSS_DO_APP);
 

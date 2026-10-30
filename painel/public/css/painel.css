@@ -287,3 +287,11 @@ th[title] { cursor: help; text-decoration: underline dotted; text-underline-offs
   .sql-layout { grid-template-columns: 1fr; }
   .truncar { max-width: 160px; }
 }
+
+/* Celular: o menu do cabeçalho passa para uma segunda linha em vez de estourar a largura. */
+@media (max-width: 700px) {
+  .header { height: auto; flex-wrap: wrap; padding: 10px 16px; row-gap: 6px; }
+  .nav { flex-basis: 100%; flex-wrap: wrap; }
+  .nav a { padding: 6px 10px; }
+  .main { padding: 24px 12px; }
+}
