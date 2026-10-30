@@ -151,7 +151,7 @@ Isso reforça, em nível de plataforma, o que o hook `security-guardrail.js` já
 |---|---|
 | `Dockerfile` | Imagem do serviço Node (`src/server.js`), multi-stage, usuário não-root, **sem npm no runtime** |
 | `Dockerfile.python` | Imagem da API Python (`src/fornecedores_api.py`), usuário não-root, **sem pip/setuptools/wheel no runtime** |
-| `docker-compose.yml` | Orquestra Postgres + Node + Python localmente (Redis/Mongo são adaptadores em memória, não precisam de serviço) |
+| `docker-compose.yml` | Orquestra frontend (nginx) + backend (Node) + Python + Postgres localmente (Redis/Mongo são adaptadores em memória, não precisam de serviço) |
 | `.github/workflows/docker-build.yml` | Build → scan → publish → deploy |
 
 ### 7.1 Rodando localmente
@@ -199,7 +199,7 @@ Jobs, na ordem em que dados fluem entre eles (`needs:`):
 ### Prompt sugerido para essa etapa
 
 ```
-Rode `docker compose up --build -d`, confirme que os 3 serviços sobem e que
+Rode `docker compose up --build -d`, confirme que os 4 serviços sobem e que
 login, clientes e fornecedores funcionam em http://localhost:3000. Depois rode
 o mesmo scan Trivy do CI nas duas imagens e, se algo falhar, explique a causa
 antes de corrigir — sem afrouxar o scan.
