@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>API Docs — Usuários</title>
+  <title>LabSystem — API Docs</title>
   <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist/swagger-ui.css" />
 </head>
 <body>
@@ -15,6 +15,11 @@
       dom_id: '#swagger-ui',
       presets: [SwaggerUIBundle.presets.apis, SwaggerUIBundle.SwaggerUIStandalonePreset],
       layout: 'BaseLayout',
+      tryItOutEnabled: true,          // "Try it out" já vem ligado em cada rota
+      displayRequestDuration: true,   // mostra quantos ms cada chamada levou
+      filter: true,                   // caixa de busca por rota/grupo
+      docExpansion: 'list',           // grupos abertos, rotas fechadas
+      defaultModelsExpandDepth: 0,    // esconde a seção de schemas até você pedir
     });
   </script>
 </body>

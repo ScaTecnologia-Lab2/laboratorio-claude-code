@@ -173,6 +173,10 @@ Detalhes e problemas encontrados: `docs/STATUS_LABORATORIO.md` (seção da sess�
 - 2026-10-30: primeiro deploy de ponta a ponta (PRs #42 e #47, deploy `0f3d3c7`) e ciclo repetido com a mudança "V4" da landing (PR #48, deploy `b6238f2`).
 - Deploy passou a **acrescentar um commit** na `producao` em vez de `git push --force` (PR #49, em revisão): `git log --first-parent origin/producao` lista os deploys.
 
+### 27. Painel de Aprendizado e Swagger completo (2026-10-30)
+- `painel/` (porta 3100, fora dos containers): telas de Containers, Kubernetes (mapa de nós/pods, HPA, eventos, logs) e Console SQL com 3 modos (leitura / simular com ROLLBACK / gravar), cada uma com textos explicativos. Guia: `docs/PAINEL_APRENDIZADO.md`.
+- `swagger.json` passou de 9 para 36 caminhos (55 operações): todas as rotas, com passo a passo de login na descrição e servidor relativo (`/`), válido em Compose, K8s dev e produção.
+
 ---
 
 ## Estrutura de arquivos

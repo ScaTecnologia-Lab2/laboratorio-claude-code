@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Painel — Console SQL</title>
+  <link rel="stylesheet" href="/css/styles.css" />
+  <link rel="stylesheet" href="/css/painel.css" />
+</head>
+<body>
+
+  <header class="header">
+    <a href="/" class="header-logo">Lab<span>System</span><small>Painel</small></a>
+    <nav class="nav" aria-label="Menu do painel">
+      <a href="/">Início</a>
+      <a href="/containers.html">Containers</a>
+      <a href="/kubernetes.html">Kubernetes</a>
+      <a href="/sql.html" class="active">Console SQL</a>
+      <a href="http://localhost:3000/api-docs">API Docs</a>
+      <a href="http://localhost:3000/">LabSystem</a>
+    </nav>
+  </header>
+
+  <main class="main">
+    <div class="container container-fluid">
+
+      <h1 class="page-title">Console SQL</h1>
+      <p class="page-sub">Converse direto com o banco de dados PostgreSQL do container: veja as tabelas, faça consultas e teste alterações com segurança.</p>
+
+      <details class="explica" open>
+        <summary>O que você está vendo nesta tela</summary>
+        <p>O LabSystem guarda usuários, clientes, produtos e outros dados em um banco <strong>PostgreSQL</strong> (um container no Docker, um pod no Kubernetes). <strong>SQL</strong> é a linguagem para perguntar e alterar esses dados. Aqui você escreve o SQL, clica em <strong>Executar</strong> e vê o resultado.</p>
+        <dl>
+          <dt>Tabelas (à esquerda)</dt>
+          <dd>Cada tabela é como uma planilha: colunas (campos) e linhas (registros). Clique no nome para ver as colunas e o tipo de cada uma; <span class="chave">chave</span> marca a chave primária (o identificador único da linha). Clicar em <em>Consultar</em> escreve um <code>SELECT</code> pronto.</dd>
+          <dt>Os 3 modos de execução</dt>
+          <dd><strong>Somente leitura</strong> (padrão): só consulta. O próprio PostgreSQL recusa qualquer <code>INSERT</code>, <code>UPDATE</code>, <code>DELETE</code>, <code>CREATE</code>… Pode experimentar à vontade.<br>
+              <strong>Simular escrita</strong>: executa a alteração, mostra quantas linhas seriam afetadas e <em>desfaz tudo</em> no final (<code>ROLLBACK</code>). Ótimo para testar um <code>UPDATE</code> ou <code>DELETE</code> sem risco.<br>
+              <strong>Gravar de verdade</strong>: a alteração é permanente. Exige marcar uma confirmação.</dd>
+          <dt>Uma instrução por vez</dt>
+          <dd>O painel roda um comando de cada vez (é isso que impede furar o modo somente leitura). Não coloque vários comandos separados por <code>;</code>.</dd>
+          <dt>Proteções</dt>
+          <dd>Consultas que passam de 10 segundos são canceladas, a tela mostra no máximo 500 linhas, a coluna <code>senha</code> aparece sempre oculta e comandos que mexem em arquivos do servidor (<code>COPY</code> etc.) são bloqueados.</dd>
+        </dl>
+        <p class="nota"><strong>Cuidado:</strong> este console usa o banco do Docker Compose (<span class="mono" id="banco-alvo">…</span>). O banco do Kubernetes é outro, separado. E lembre: <code>npm run test:integration</code> apaga a tabela de usuários, então nunca o rode contra este banco.</p>
+      </details>
+
+      <div id="msg-geral" class="mensagem" role="alert"></div>
+
+      <div class="sql-layout">
+
+        <div class="card">
+          <p class="card-title">Tabelas do banco</p>
+          <div id="esquema"><p class="fraco">Carregando…</p></div>
+          <button class="btn btn-secondary btn-sm" id="btn-esquema" type="button">Recarregar tabelas</button>
+        </div>
+
+        <div class="sql-coluna">
+
+          <div class="card" id="card-editor">
+            <p class="card-title">Escreva seu SQL</p>
+
+            <div class="barra-acoes">
+              <label for="exemplos">Exemplos para aprender:</label>
+              <select id="exemplos" class="controle"><option value="">— escolha um exemplo —</option></select>
+            </div>
+            <p class="nota" id="exemplo-explica"></p>
+
+            <label for="sql" class="fraco">Instrução SQL (Ctrl+Enter executa)</label>
+            <textarea id="sql" class="sql-editor" spellcheck="false" placeholder="SELECT * FROM clientes LIMIT 10"></textarea>
+
+            <fieldset class="modos">
+              <legend>Modo de execução</legend>
+              <label class="modo"><input type="radio" name="modo" value="leitura" checked /> <strong>Somente leitura</strong><br>Só consulta. Qualquer alteração é recusada pelo banco.</label>
+              <label class="modo"><input type="radio" name="modo" value="simular" /> <strong>Simular escrita</strong><br>Executa e <em>desfaz</em> no final. Nada é gravado.</label>
+              <label class="modo perigo"><input type="radio" name="modo" value="gravar" /> <strong>Gravar de verdade</strong><br>A alteração é permanente.</label>
+            </fieldset>
+
+            <p class="confirma-gravar" id="area-confirma" hidden>
+              <label><input type="checkbox" id="confirma" /> Entendo que isto altera o banco de verdade e não pode ser desfeito.</label>
+            </p>
+
+            <div class="acoes-sql">
+              <button class="btn btn-primary" id="btn-executar" type="button">Executar</button>
+              <button class="btn btn-secondary" id="btn-limpar" type="button">Limpar</button>
+            </div>
+          </div>
+
+          <div class="card" id="card-resultado" hidden>
+            <p class="card-title">Resultado</p>
+            <div id="msg-sql" class="mensagem" role="alert"></div>
+            <p class="resumo-resultado" id="resumo"></p>
+            <div class="tabela-resultado" id="tabela" tabindex="0" aria-label="Resultado da consulta"></div>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <footer class="footer">Painel de Aprendizado — roda só neste computador (127.0.0.1)</footer>
+
+  <script src="/js/comum.js"></script>
+  <script src="/js/sql.js"></script>
+</body>
+</html>
