@@ -23,6 +23,7 @@ pip install -r requirements.txt
 
 # Subir tudo com Docker (frontend + backend + API Python + Postgres) — alternativa aos 2 comandos abaixo
 docker compose up --build -d
+DOCKERHUB_USUARIO=<usuario> docker compose -f docker-compose.hub.yml up -d   # mesmos 4, imagens do Docker Hub (sem build)
 docker compose down            # derruba (dados do Postgres ficam no volume)
 
 # Kubernetes local (pare o compose antes — RAM)
@@ -56,7 +57,7 @@ bandit -r src/ -q                     # SAST Python
 - Pipeline Docker: `.github/workflows/docker-build.yml` — build + scan (Trivy, `ignore-unfixed`) rodam **automaticamente** em push/PR na `main`; publish no Docker Hub e deploy em produção rodam **só manualmente** (`workflow_dispatch`, deploy exige aprovação humana no GitHub Environment `production`). O hook `pipeline-guardrail.js` bloqueia qualquer edição que deixe publish/deploy automáticos.
 - Docker **ativo** nesta máquina (Linux): `docker compose up --build -d` sobe frontend nginx (3000) → backend Node (3002, só localhost) → API Python (3001, só localhost) + Postgres (5151, só localhost). Host/porta vêm de variáveis de ambiente (`DB_HOST`, `DB_PORT`, `FORNECEDORES_HOST`, `FORNECEDORES_PORT`, `FLASK_HOST`) com padrão `localhost`, então rodar sem Docker continua funcionando igual. Não rode Postgres local na 5151 e o compose ao mesmo tempo.
 - Teoria e passo a passo completos: `docs/DEVOPS_GUIA.md` e `docs/ROTEIRO_CICD_CLAUDE_CODE.md`.
-- **Kubernetes/GitOps:** publish envia as 3 imagens ao **Docker Hub** (`vars.DOCKERHUB_USERNAME` + `secrets.DOCKERHUB_TOKEN`); deploy-production (com aprovação) grava a tag na branch **`producao`**, que o **Argo CD** aplica no namespace `labsystem` (:8080). O GitHub nunca acessa o cluster. Guias: `docs/CONTAINERS_K8S_GUIA.md`, `docs/K8S_FLUXO_DEV_CICD.md`, `docs/K8S_TESTE_DE_CARGA.md`.
+- **Kubernetes/GitOps:** publish envia as 3 imagens ao **Docker Hub** (`vars.DOCKERHUB_USERNAME` + `secrets.DOCKERHUB_TOKEN`); deploy-production (com aprovação) grava a tag na branch **`producao`**, que o **Argo CD** aplica no namespace `labsystem` (:8080). O GitHub nunca acessa o cluster. Cada deploy é um commit novo na `producao` (sem `--force`): `git fetch && git log --first-parent --oneline origin/producao` lista os deploys. Guias: `docs/CONTAINERS_K8S_GUIA.md`, `docs/K8S_FLUXO_DEV_CICD.md`, `docs/K8S_TESTE_DE_CARGA.md`.
 
 ## Trabalho em equipe (vários devs no mesmo repositório)
 

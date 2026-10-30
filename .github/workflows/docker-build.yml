@@ -207,6 +207,11 @@ jobs:
   # GitOps: este job NÃO fala com o cluster. Ele grava a nova versão no Git
   # (branch `producao` = main neste commit + troca da tag das imagens) e o
   # Argo CD, que observa essa branch (k8s/argocd/application.yaml), aplica.
+  #
+  # Histórico: cada deploy é um commit NOVO em cima do deploy anterior (push
+  # normal, sem --force), com dois pais — o deploy anterior e o commit da main
+  # publicado. Assim `git log --first-parent origin/producao` é a lista de
+  # deploys (quem, quando, qual versão), inclusive os rollbacks.
   # Rollback: reexecute ("Re-run all jobs") um run antigo deste workflow —
   # ele grava de volta a tag daquele commit (e pede aprovação de novo).
   # ──────────────────────────────────────────────────────────────────────
@@ -217,6 +222,10 @@ jobs:
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.deploy_production && inputs.push_image }}
     environment:
       name: production
+    # Dois deploys ao mesmo tempo entram em fila (um não atropela o outro).
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
     permissions:
       contents: write   # para gravar a branch producao
     steps:
@@ -237,9 +246,20 @@ jobs:
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -am "deploy: produção na versão ${SHA::7} (aprovado no environment production, disparado por $ACTOR)"
-          # A branch producao é um "ponteiro" do que roda em produção: cada
-          # deploy a substitui por main@SHA + 1 commit com a tag nova.
-          git push --force origin HEAD:producao
+          # Conteúdo do deploy = arquivos da main neste commit + a tag trocada acima.
+          git add -A
+          ARVORE=$(git write-tree)
+          # Pais do commit de deploy: o deploy anterior (se a branch já existe)
+          # e o commit da main que foi publicado.
+          PAIS="-p $SHA"
+          if git fetch --depth=1 origin producao 2>/dev/null; then
+            PAIS="-p $(git rev-parse FETCH_HEAD) $PAIS"
+          fi
+          DEPLOY=$(git commit-tree "$ARVORE" $PAIS \
+            -m "deploy: produção na versão ${SHA::7} (aprovado no environment production, disparado por $ACTOR)")
+          # Push normal: se outro deploy tiver gravado a branch nesse meio-tempo,
+          # o Git recusa (em vez de apagar o deploy do outro).
+          git push origin "$DEPLOY:refs/heads/producao"
           echo "### Deploy gravado na branch producao: \`${SHA::7}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "Histórico de deploys: \`git log --first-parent --oneline origin/producao\`" >> "$GITHUB_STEP_SUMMARY"
           echo "O Argo CD sincroniza em até ~3 minutos (ou clique em Refresh no painel)." >> "$GITHUB_STEP_SUMMARY"

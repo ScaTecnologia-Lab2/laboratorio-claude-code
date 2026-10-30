@@ -21,7 +21,8 @@ O backend de Fornecedores roda em **Python (Flask)** na porta 3001. O servidor N
 | Redis / MongoDB  | Adaptadores **em memória** (`src/redis.js`, `src/mongo.js`) — sem servidor externo |
 | Frontend         | HTML + CSS + JavaScript puro        |
 | API Docs         | Swagger UI (via CDN)                |
-| Containers       | Docker + Docker Compose (Postgres + Node + Python) |
+| Containers       | Docker + Docker Compose (4 containers: nginx + Node + Python + Postgres) |
+| Orquestração     | Kubernetes local (k3d + Kustomize), GitOps com Argo CD, imagens no Docker Hub |
 | CI/CD            | GitHub Actions (`ci.yml`, `docker-build.yml`), CodeQL, Dependabot |
 | Qualidade        | ESLint 10 (`eslint.config.js`), flake8, pytest, bandit, pip-audit, Trivy |
 
@@ -85,9 +86,14 @@ laboratorio-claude-code/
 │   ├── ISSUE_TEMPLATE/         ← Modelos de card: tarefa, bug
 │   └── pull_request_template.md
 ├── .claude/                    ← Skills, agentes e hooks do Claude Code
-├── Dockerfile                  ← Imagem do Node
+├── frontend/default.conf.template ← Config do nginx (páginas + proxy para o backend)
+├── k8s/                        ← Manifestos Kubernetes (Kustomize): base, overlays dev/producao, argocd
+├── scripts/k8s/                ← Cluster k3d, deploy dev, Argo CD, teste de carga (k6)
+├── Dockerfile                  ← Imagem do backend Node
+├── Dockerfile.frontend         ← Imagem do frontend (nginx)
 ├── Dockerfile.python           ← Imagem da API Python
-├── docker-compose.yml          ← Sobe Postgres + Node + Python
+├── docker-compose.yml          ← Sobe frontend + backend + API Python + Postgres (build local)
+├── docker-compose.hub.yml      ← Os mesmos 4, usando as imagens do Docker Hub
 ├── eslint.config.js            ← Regras de lint JS
 ├── .flake8                     ← Regras de lint Python
 ├── CODEOWNERS                  ← Revisor obrigatório por área (@ScaTecnologia)
@@ -135,6 +141,7 @@ Ponto de entrada da aplicação Node.js. Cria o servidor HTTP na porta 3000 e ce
 | GET    | `/login.html`         | Livre       | Tela de login                        |
 | GET    | `/fornecedores.html`  | Livre       | Página CRUD fornecedores             |
 | GET    | `/api-docs`           | Livre       | Swagger UI                           |
+| GET    | `/health`, `/pronto`  | Livre       | Saúde: processo vivo / banco acessível |
 | POST   | `/login`              | Livre       | Autentica e cria sessão              |
 | POST   | `/logout`             | Livre       | Encerra sessão e limpa cookie        |
 | GET    | `/me`                 | Sessão      | Retorna usuário da sessão ativa      |
@@ -149,6 +156,8 @@ Ponto de entrada da aplicação Node.js. Cria o servidor HTTP na porta 3000 e ce
 | PUT    | `/clientes/:id`       | Sessão      | Atualiza cliente                     |
 | DELETE | `/clientes/:id`       | Sessão      | Remove cliente                       |
 | *      | `/fornecedores/*`     | Sessão      | Proxy para API Python (:3001)        |
+| *      | `/produtos`, `/estoque`, `/carrinho`, `/avaliacoes`, `/eventos`, `/relatorio`, `/categorias` | Sessão | Demais recursos (handlers em `src/routes/`; produtos, estoque e carrinho usam o adaptador Redis em memória; avaliações e eventos, o adaptador Mongo em memória) |
+| GET    | `/redis-status`       | Sessão      | Estado do adaptador Redis em memória |
 | GET    | `/css/*`, `/js/*` ... | Livre       | Arquivos estáticos de `src/public/` |
 
 ---

@@ -22,10 +22,10 @@ resources:
 images:
   - name: labsystem-backend
     newName: docker.io/alexaugusto2/labsystem-backend
-    newTag: "b6238f2ff31d9a9dbe6a8318ecd8baedd3635b6e"
+    newTag: "cd7273cd1b5469288da265b89ec243af7b8581b3"
   - name: labsystem-fornecedores
     newName: docker.io/alexaugusto2/labsystem-fornecedores
-    newTag: "b6238f2ff31d9a9dbe6a8318ecd8baedd3635b6e"
+    newTag: "cd7273cd1b5469288da265b89ec243af7b8581b3"
   - name: labsystem-frontend
     newName: docker.io/alexaugusto2/labsystem-frontend
-    newTag: "b6238f2ff31d9a9dbe6a8318ecd8baedd3635b6e"
+    newTag: "cd7273cd1b5469288da265b89ec243af7b8581b3"
