@@ -7,7 +7,7 @@
 # ============================================================================
 # nginx-unprivileged: mesma imagem oficial do nginx, mas roda como usuário
 # comum (não-root) na porta 8080 — boa prática de segurança de contêiner.
-FROM nginxinc/nginx-unprivileged:1.30-alpine
+FROM nginxinc/nginx-unprivileged:1.31-alpine
 # Aplica as correções de segurança do Alpine publicadas depois da imagem base
 # e remove o curl (o nginx não precisa dele): o Trivy barra CVEs com correção.
 USER root
