@@ -148,4 +148,5 @@ bandit -r src/ -q                     # SAST Python
 | `docs/K8S_TESTE_DE_CARGA.md` | Simular grande demanda (k6) e ver o HPA escalar; testes de resiliência com resultados reais |
 | `docs/PAINEL_APRENDIZADO.md` | Painel de Aprendizado: telas de containers/Kubernetes, console SQL com 3 modos, segurança, Swagger atualizado |
 | `docs/SIMULANDO_2_DEVS.md` | Simular 2 devs na mesma máquina: pastas `~/devs/dev1` e `~/devs/dev2`, cada uma com seus containers e portas (`portas.env`) |
+| `docs/EXERCICIO_CAMPO_NOVO_2_DEVS.md` | Exercício: Dev 1 (clientes) e Dev 2 (fornecedores) criam um campo novo cada, do backend ao front, com o fluxo de CI/CD e sem conflito |
 | `docs/FABRICA_DE_SOFTWARE.md` | **Passo a passo didático do card à produção** (gerente, dev, revisor, aprovador): tela + CLI, containers de dev/produção, banco, tag, deploy e rollback |
