@@ -1,6 +1,8 @@
 # Simulando 2 desenvolvedores na mesma máquina (com containers)
 
 > Para quem nunca usou containers. Pré-requisito: Docker funcionando (`docker compose version`). Contexto do fluxo card → branch → PR: `docs/BACKLOG_KANBAN.md`.
+>
+> **Exercício pronto para praticar:** `docs/EXERCICIO_CAMPO_NOVO_2_DEVS.md` — Dev 1 cria um campo em Clientes e Dev 2 em Fornecedores, ao mesmo tempo, passando pelo CI/CD sem conflito.
 
 ---
 
@@ -11,7 +13,8 @@
 ```
 Pasta do Dev 1 (branch dele)            Pasta do Dev 2 (branch dele)
 └─ docker compose ... up                └─ docker compose ... up
-   → postgres + node + fornecedores        → postgres + node + fornecedores
+   → frontend (nginx) + backend (Node)     → frontend (nginx) + backend (Node)
+     + fornecedores (Python) + postgres      + fornecedores (Python) + postgres
      banco SÓ do Dev 1                       banco SÓ do Dev 2
      http://localhost:3010                   http://localhost:3020
                  \                          /
@@ -19,7 +22,7 @@ Pasta do Dev 1 (branch dele)            Pasta do Dev 2 (branch dele)
                      GitHub (main, CI, board Kanban)
 ```
 
-- Os containers são **idênticos** para todos (mesmo Node, Python e Postgres, definidos no `Dockerfile` e no `docker-compose.yml`) — por isso não existe mais "na minha máquina funciona".
+- Os containers são **idênticos** para todos (mesmo nginx, Node, Python e Postgres, definidos nos `Dockerfile*` e no `docker-compose.yml`) — por isso não existe mais "na minha máquina funciona".
 - O código dos dois **só se encontra no GitHub**, via Pull Request. Os containers nunca conversam entre si.
 - Numa empresa, cada dev faz isso no próprio computador. Aqui você faz os dois papéis, com duas pastas.
 
@@ -36,6 +39,8 @@ Pasta do Dev 1 (branch dele)            Pasta do Dev 2 (branch dele)
 | Backend Node direto (só local) | 3012 | 3022 | 3002 |
 | Postgres (só local) | 5161 | 5162 | 5151 |
 | Nome dos containers | `dev1-...` | `dev2-...` | `laboratorio-claude-code-...` |
+
+Cada dev sobe **4 containers**: `frontend` (nginx, a porta do navegador), `backend` (Node), `fornecedores` (Python) e `postgres`. O navegador fala só com o `frontend`, que repassa ao `backend`. Cada stack usa cerca de 0,5 GB de RAM: com o Compose principal **e** o cluster k3d ligados, a máquina de 8 GB não aguenta mais dois stacks — pare um deles antes (`docker compose down` na pasta principal ou `sh scripts/k8s/destruir-cluster.sh`).
 
 As portas e o nome ficam no arquivo `portas.env` de cada pasta (fora do Git). Por isso **todo comando do compose leva `--env-file portas.env`**.
 
@@ -66,13 +71,28 @@ cd ~/devs/dev1/laboratorio-claude-code      # agora você é o Dev 1
 |---|---|
 | Subir o sistema com o código atual da pasta | `docker compose --env-file portas.env up --build -d` |
 | Ver se está rodando | `docker compose --env-file portas.env ps` |
-| Ver os logs do app (Ctrl+C sai) | `docker compose --env-file portas.env logs -f backend` |
+| Ver os logs do backend (Ctrl+C sai) | `docker compose --env-file portas.env logs -f backend` (ou `fornecedores`, `frontend`) |
 | Parar (os dados do banco ficam guardados) | `docker compose --env-file portas.env down` |
 | Parar e **apagar o banco** deste dev | `docker compose --env-file portas.env down -v` |
 | Ver **todos** os containers da máquina | `docker ps` |
 | Conferir quem eu sou e em que branch estou | `git config user.name && git branch --show-current` |
 
-**Mudou o código? Rode o `up --build -d` de novo** — o container é reconstruído com a versão nova. Páginas HTML/JS e o servidor Node só mudam no container depois desse comando.
+**Mudou o código? Rode o `up --build -d` de novo** — o container é reconstruído com a versão nova. Páginas HTML/JS (imagem do `frontend`), o servidor Node (`backend`) e a API Python (`fornecedores`) só mudam no container depois desse comando.
+
+### 3.1 Primeira vez depois da mudança para containers separados (ou pasta parada há tempo)
+
+O compose antigo tinha um serviço `node`; hoje são `backend` + `frontend`. Numa pasta de dev anterior a essa mudança, atualize assim (uma vez):
+
+```bash
+cd ~/devs/dev2/laboratorio-claude-code          # ou dev1
+git checkout main && git pull                   # traz containers, k8s, painel
+docker compose --env-file portas.env down --remove-orphans   # remove o stack antigo (serviço "node")
+docker compose --env-file portas.env up --build -d           # sobe os 4 containers novos
+docker compose --env-file portas.env ps                      # todos "Up"
+npm ci                                          # lint local
+```
+
+O `portas.env` precisa ter `BACKEND_PORT` (Dev 1: 3012, Dev 2: 3022). Se o banco do dev for apagado (`down -v`), ele volta vazio e o login é `admin@labsystem.com` / `admin123`.
 
 ## 4. Roteiro: dois devs, dois cards, ao mesmo tempo
 
@@ -96,10 +116,12 @@ cd ~/devs/dev1/laboratorio-claude-code      # agora você é o Dev 1
    ```
    Abra http://localhost:3020 — **lado a lado** com a do Dev 1, cada uma com o código da sua branch e o seu próprio banco.
 
+   > Mudou o **banco** (campo novo)? Veja o cuidado com `ALTER TABLE` em `docs/EXERCICIO_CAMPO_NOVO_2_DEVS.md`.
+
 4. **Cada dev sobe a sua atualização** (na pasta dele):
    ```bash
    npm ci              # só na 1ª vez, para ter o lint local
-   npm run lint
+   npm run lint        # e, se mexeu em Python: flake8 src/ tests/ --config=.flake8 && pytest tests/ -v
    git add <arquivos>
    git commit -m "feat: ..."
    git push
@@ -108,7 +130,7 @@ cd ~/devs/dev1/laboratorio-claude-code      # agora você é o Dev 1
 
 5. **O outro dev revisa e aprova** — ninguém aprova o próprio PR, e a `main` exige 1 aprovação de code owner. Na janela logada como **sca-dev2**, abra o PR do Dev 1 → aba *Files changed* → leia, comente se precisar → **Review changes → Approve**. (E o Dev 1 faz o mesmo com o PR do Dev 2.) Pelo terminal: `gh auth switch -u sca-dev2 && gh pr review <n> --approve`.
 
-6. **Merge** — com CI verde **e** aprovação, o botão **Merge pull request** libera (para qualquer um do time). A issue fecha e o card vai para **Concluído**.
+6. **Merge** — com CI verde **e** aprovação, o botão **Merge pull request** libera (para qualquer um do time). A issue fecha e o card vai para **Concluído**. O merge só atualiza a `main`: **não muda a produção** (o deploy é manual, com aprovação — `docs/FABRICA_DE_SOFTWARE.md`).
 
 7. **Quem chegar depois atualiza a branch antes do merge** — se o outro dev já mesclou:
    ```bash
@@ -132,6 +154,8 @@ cd ~/devs/dev1/laboratorio-claude-code      # agora você é o Dev 1
 | Commit saiu com o autor errado | Comando rodado na pasta errada | `pwd` e `git config user.name` antes de commitar |
 | Quero começar do zero o banco de um dev | — | `docker compose --env-file portas.env down -v` e `up --build -d` de novo |
 | Botão de merge bloqueado: "Review required" | Falta a aprovação de **outra** conta | Aprove na janela do outro dev (seção 4, passo 5) |
+| `no such service: node` ou container `dev?-node-1` sobrando | Stack criado antes da separação em `backend`/`frontend` | Seção 3.1: `down --remove-orphans` e `up --build -d` |
+| Máquina lenta/travando | Compose principal + cluster k3d + 2 stacks de dev ao mesmo tempo | Pare o que não está usando (seção 2) |
 | `Permission denied (publickey)` no push | A chave da pasta não está cadastrada na conta do dev | `ssh -i ~/.ssh/id_ed25519_devN -o IdentitiesOnly=yes -T git@github.com` deve responder `Hi sca-devN!` |
 | O `gh` fez algo com a conta errada | A conta ativa é outra | `gh auth status` e `gh auth switch -u <conta>` |
 
